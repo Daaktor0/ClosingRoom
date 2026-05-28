@@ -15,6 +15,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [authError, setAuthError] = useState("");
   const [notice, setNotice] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [resending, setResending] = useState(false);
   const config = getSupabaseConfigStatus();
   const supabase = getSupabaseClient();
 
@@ -82,6 +83,27 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function resendConfirmation() {
+    if (!supabase) return;
+    if (!email) {
+      setAuthError("Enter your email above first, then resend.");
+      return;
+    }
+    setAuthError("");
+    setNotice("");
+    setResending(true);
+    try {
+      const { error } = await supabase.auth.resend({ type: "signup", email });
+      if (error) {
+        setAuthError(error.message);
+        return;
+      }
+      setNotice(`Confirmation email re-sent to ${email}. Check your inbox and spam folder.`);
+    } finally {
+      setResending(false);
+    }
+  }
+
   if (!config.configured) {
     return (
       <main className="grid min-h-screen place-items-center px-4">
@@ -139,17 +161,29 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="your-publishable-or-anon-key"`}
               <LogIn size={16} /> {mode === "signup" ? "Create account" : "Sign in"}
             </Button>
           </form>
-          <button
-            type="button"
-            className="mt-4 text-sm text-[var(--muted)] underline-offset-4 hover:underline"
-            onClick={() => {
-              setMode((value) => (value === "signin" ? "signup" : "signin"));
-              setAuthError("");
-              setNotice("");
-            }}
-          >
-            {mode === "signup" ? "Already have an account? Sign in" : "New firm? Create an account"}
-          </button>
+          <div className="mt-4 flex flex-col gap-2">
+            <button
+              type="button"
+              className="text-left text-sm text-[var(--muted)] underline-offset-4 hover:underline"
+              onClick={() => {
+                setMode((value) => (value === "signin" ? "signup" : "signin"));
+                setAuthError("");
+                setNotice("");
+              }}
+            >
+              {mode === "signup" ? "Already have an account? Sign in" : "New firm? Create an account"}
+            </button>
+            {mode === "signin" ? (
+              <button
+                type="button"
+                onClick={resendConfirmation}
+                disabled={resending}
+                className="text-left text-sm text-[var(--muted)] underline-offset-4 hover:underline disabled:opacity-60"
+              >
+                {resending ? "Sending confirmation email..." : "Didn't get the confirmation email? Resend"}
+              </button>
+            ) : null}
+          </div>
         </Card>
       </main>
     );
