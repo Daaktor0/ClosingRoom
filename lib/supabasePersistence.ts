@@ -216,7 +216,7 @@ async function insertSeedChildren(dealRow: DealRow, organizationId: string, user
   const supabase = requireClient();
   const { error: tasksError } = await supabase
     .from("deal_task")
-    .insert(seed.tasks.map((task) => toTaskRow(task, dealRow.id, organizationId)));
+    .upsert(seed.tasks.map((task) => toTaskRow(task, dealRow.id, organizationId)), { onConflict: "deal_id,source_task_id" });
   failIf(tasksError);
 
   if (seed.notes.length) {
@@ -231,6 +231,17 @@ async function insertSeedChildren(dealRow: DealRow, organizationId: string, user
       })));
     failIf(notesError);
   }
+}
+
+async function ensureDealHasTasks(dealRow: DealRow, organizationId: string, userId: string): Promise<Deal> {
+  let deal = await loadDeal(dealRow);
+
+  if (!deal.tasks.length) {
+    await insertSeedChildren(dealRow, organizationId, userId, createSeedDeal());
+    deal = await loadDeal(dealRow);
+  }
+
+  return deal;
 }
 
 async function loadDeal(dealRow: DealRow): Promise<Deal> {
@@ -257,15 +268,7 @@ export async function loadOrCreateCurrentDeal(): Promise<Deal> {
   failIf(dealsError);
 
   const dealRow = (dealRows?.[0] as DealRow | undefined) ?? await createSeedDealInSupabase(organizationId, user.id);
-  let deal = await loadDeal(dealRow);
-
-  if (!deal.tasks.length) {
-    const seed = createSeedDeal();
-    await insertSeedChildren(dealRow, organizationId, user.id, seed);
-    deal = await loadDeal(dealRow);
-  }
-
-  return deal;
+  return ensureDealHasTasks(dealRow, organizationId, user.id);
 }
 
 export async function saveDealPatch(dealId: string, patch: Pick<Deal, "name" | "companyName" | "investorName"> | Pick<Deal, "closingDateX">) {
@@ -276,8 +279,9 @@ export async function saveDealPatch(dealId: string, patch: Pick<Deal, "name" | "
   if ("investorName" in patch) rowPatch.investor_name = patch.investorName;
   if ("closingDateX" in patch) rowPatch.closing_date_x = patch.closingDateX || null;
 
-  const { error } = await supabase.from("deal").update(rowPatch).eq("id", dealId);
+  const { data, error } = await supabase.from("deal").update(rowPatch).eq("id", dealId).select("id").single();
   failIf(error);
+  if (!data) throw new Error("Deal was not saved. Refresh and confirm this account still has access to the deal.");
 }
 
 export async function saveTaskPatch(dealId: string, taskId: string, patch: Partial<Pick<Task, "status" | "evidence" | "documentStatus" | "notes">>) {
@@ -287,13 +291,17 @@ export async function saveTaskPatch(dealId: string, taskId: string, patch: Parti
   if ("evidence" in patch) rowPatch.evidence = jsonValue(patch.evidence);
   if ("documentStatus" in patch) rowPatch.document_status = patch.documentStatus;
   if ("notes" in patch) rowPatch.notes = patch.notes;
+  rowPatch.last_updated = new Date().toISOString();
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("deal_task")
     .update(rowPatch)
     .eq("deal_id", dealId)
-    .eq("source_task_id", taskId);
+    .eq("source_task_id", taskId)
+    .select("id")
+    .single();
   failIf(error);
+  if (!data) throw new Error("Task was not saved. Refresh and confirm this account still has access to the deal.");
 }
 
 export async function createDealNote(dealId: string, note: Omit<DealNote, "id" | "createdAt">): Promise<DealNote> {
@@ -347,9 +355,10 @@ export async function resetCurrentDeal(dealId: string): Promise<Deal> {
 
 export async function loadDealById(dealId: string): Promise<Deal> {
   const supabase = requireClient();
+  const { user, organizationId } = await getCurrentUserAndOrganization();
   const { data: dealRow, error } = await supabase.from("deal").select("*").eq("id", dealId).single();
   failIf(error);
-  return loadDeal(dealRow as DealRow);
+  return ensureDealHasTasks(dealRow as DealRow, organizationId, user.id);
 }
 
 export async function createDeal(input: {

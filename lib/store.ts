@@ -30,11 +30,22 @@ function touch(): string {
 
 type SetDealStore = (partial: Partial<DealStore> | ((state: DealStore) => Partial<DealStore>)) => void;
 
-function withSaveStatus(set: SetDealStore, action: Promise<unknown>) {
+let saveQueue: Promise<unknown> = Promise.resolve();
+let saveSequence = 0;
+
+function withSaveStatus(set: SetDealStore, action: () => Promise<unknown>) {
+  const sequence = ++saveSequence;
   set({ syncStatus: "saving", syncMessage: "Saving to Supabase..." });
-  action
-    .then(() => set({ syncStatus: "idle", syncMessage: "Saved in Supabase" }))
-    .catch((error: Error) => set({ syncStatus: "error", syncMessage: error.message }));
+
+  saveQueue = saveQueue
+    .catch(() => undefined)
+    .then(action)
+    .then(() => {
+      if (sequence === saveSequence) set({ syncStatus: "idle", syncMessage: "Saved in Supabase" });
+    })
+    .catch((error: Error) => {
+      if (sequence === saveSequence) set({ syncStatus: "error", syncMessage: error.message });
+    });
 }
 
 export const useDealStore = create<DealStore>()(
@@ -67,11 +78,11 @@ export const useDealStore = create<DealStore>()(
     },
     setClosingDate: (closingDateX) => {
       set((state) => ({ deal: { ...state.deal, closingDateX } }));
-      withSaveStatus(set, saveDealPatch(get().deal.id, { closingDateX }));
+      withSaveStatus(set, () => saveDealPatch(get().deal.id, { closingDateX }));
     },
     updateDealMeta: (patch) => {
       set((state) => ({ deal: { ...state.deal, ...patch } }));
-      withSaveStatus(set, saveDealPatch(get().deal.id, patch));
+      withSaveStatus(set, () => saveDealPatch(get().deal.id, patch));
     },
     updateTaskStatus: (taskId, status) => {
       set((state) => ({
@@ -81,7 +92,7 @@ export const useDealStore = create<DealStore>()(
         }
       }));
       const task = get().deal.tasks.find((item) => item.id === taskId);
-      if (task) withSaveStatus(set, saveTaskPatch(get().deal.id, taskId, { status: task.status }));
+      if (task) withSaveStatus(set, () => saveTaskPatch(get().deal.id, taskId, { status: task.status }));
     },
     updateTaskEvidence: (taskId, evidence) => {
       set((state) => ({
@@ -93,7 +104,7 @@ export const useDealStore = create<DealStore>()(
         }
       }));
       const task = get().deal.tasks.find((item) => item.id === taskId);
-      if (task) withSaveStatus(set, saveTaskPatch(get().deal.id, taskId, { evidence: task.evidence }));
+      if (task) withSaveStatus(set, () => saveTaskPatch(get().deal.id, taskId, { evidence: task.evidence }));
     },
     updateDocumentStatus: (taskId, documentStatus) => {
       set((state) => ({
@@ -103,7 +114,7 @@ export const useDealStore = create<DealStore>()(
         }
       }));
       const task = get().deal.tasks.find((item) => item.id === taskId);
-      if (task) withSaveStatus(set, saveTaskPatch(get().deal.id, taskId, { documentStatus: task.documentStatus }));
+      if (task) withSaveStatus(set, () => saveTaskPatch(get().deal.id, taskId, { documentStatus: task.documentStatus }));
     },
     updateTaskNotes: (taskId, notes) => {
       const cappedNotes = notes.slice(0, STATUS_NOTE_MAX_LENGTH);
@@ -113,7 +124,7 @@ export const useDealStore = create<DealStore>()(
           tasks: state.deal.tasks.map((task) => (task.id === taskId ? { ...task, notes: cappedNotes, lastUpdated: touch() } : task))
         }
       }));
-      withSaveStatus(set, saveTaskPatch(get().deal.id, taskId, { notes: cappedNotes }));
+      withSaveStatus(set, () => saveTaskPatch(get().deal.id, taskId, { notes: cappedNotes }));
     },
     addNote: (note) => {
       const localNote = { ...note, text: note.text.slice(0, STATUS_NOTE_MAX_LENGTH), id: `note-${Date.now()}`, createdAt: touch() };
@@ -123,19 +134,15 @@ export const useDealStore = create<DealStore>()(
           notes: [localNote, ...state.deal.notes]
         }
       }));
-      set({ syncStatus: "saving", syncMessage: "Saving to Supabase..." });
-      createDealNote(get().deal.id, localNote)
+      withSaveStatus(set, () => createDealNote(get().deal.id, localNote)
         .then((savedNote) =>
           set((state) => ({
             deal: {
               ...state.deal,
               notes: state.deal.notes.map((item) => (item.id === localNote.id ? savedNote : item))
-            },
-            syncStatus: "idle",
-            syncMessage: "Saved in Supabase"
+            }
           }))
-        )
-        .catch((error: Error) => set({ syncStatus: "error", syncMessage: error.message }));
+        ));
     },
     resetDemo: async () => {
       set({ syncStatus: "saving", syncMessage: "Resetting Supabase data..." });
