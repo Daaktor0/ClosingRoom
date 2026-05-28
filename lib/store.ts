@@ -1,7 +1,6 @@
 "use client";
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import { createSeedDeal } from "./checklistSeed";
 import { STATUS_NOTE_MAX_LENGTH } from "./constants";
 import type { Deal, DealNote, DocumentStatus, Evidence, TaskStatus } from "./types";
@@ -23,52 +22,47 @@ function touch(): string {
 }
 
 export const useDealStore = create<DealStore>()(
-  persist(
-    (set) => ({
-      deal: createSeedDeal(),
-      setClosingDate: (closingDateX) => set((state) => ({ deal: { ...state.deal, closingDateX } })),
-      updateDealMeta: (patch) => set((state) => ({ deal: { ...state.deal, ...patch } })),
-      updateTaskStatus: (taskId, status) =>
-        set((state) => ({
-          deal: {
-            ...state.deal,
-            tasks: state.deal.tasks.map((task) => (task.id === taskId ? { ...task, status, lastUpdated: touch() } : task))
-          }
-        })),
-      updateTaskEvidence: (taskId, evidence) =>
-        set((state) => ({
-          deal: {
-            ...state.deal,
-            tasks: state.deal.tasks.map((task) =>
-              task.id === taskId ? { ...task, evidence: { ...task.evidence, ...evidence }, lastUpdated: touch() } : task
-            )
-          }
-        })),
-      updateDocumentStatus: (taskId, documentStatus) =>
-        set((state) => ({
-          deal: {
-            ...state.deal,
-            tasks: state.deal.tasks.map((task) => (task.id === taskId ? { ...task, documentStatus, lastUpdated: touch() } : task))
-          }
-        })),
-      updateTaskNotes: (taskId, notes) =>
-        set((state) => ({
-          deal: {
-            ...state.deal,
-            tasks: state.deal.tasks.map((task) => (task.id === taskId ? { ...task, notes: notes.slice(0, STATUS_NOTE_MAX_LENGTH), lastUpdated: touch() } : task))
-          }
-        })),
-      addNote: (note) =>
-        set((state) => ({
-          deal: {
-            ...state.deal,
-            notes: [{ ...note, text: note.text.slice(0, STATUS_NOTE_MAX_LENGTH), id: `note-${Date.now()}`, createdAt: touch() }, ...state.deal.notes]
-          }
-        })),
-      resetDemo: () => set({ deal: createSeedDeal() })
-    }),
-    {
-      name: "fundraise-closing-tracker"
-    }
-  )
+  (set) => ({
+    deal: createSeedDeal(),
+    setClosingDate: (closingDateX) => set((state) => ({ deal: { ...state.deal, closingDateX } })),
+    updateDealMeta: (patch) => set((state) => ({ deal: { ...state.deal, ...patch } })),
+    updateTaskStatus: (taskId, status) =>
+      set((state) => ({
+        deal: {
+          ...state.deal,
+          tasks: state.deal.tasks.map((task) => (task.id === taskId ? { ...task, status, lastUpdated: touch() } : task))
+        }
+      })),
+    updateTaskEvidence: (taskId, evidence) =>
+      set((state) => ({
+        deal: {
+          ...state.deal,
+          tasks: state.deal.tasks.map((task) =>
+            task.id === taskId ? { ...task, evidence: { ...task.evidence, ...evidence }, lastUpdated: touch() } : task
+          )
+        }
+      })),
+    updateDocumentStatus: (taskId, documentStatus) =>
+      set((state) => ({
+        deal: {
+          ...state.deal,
+          tasks: state.deal.tasks.map((task) => (task.id === taskId ? { ...task, documentStatus, lastUpdated: touch() } : task))
+        }
+      })),
+    updateTaskNotes: (taskId, notes) =>
+      set((state) => ({
+        deal: {
+          ...state.deal,
+          tasks: state.deal.tasks.map((task) => (task.id === taskId ? { ...task, notes: notes.slice(0, STATUS_NOTE_MAX_LENGTH), lastUpdated: touch() } : task))
+        }
+      })),
+    addNote: (note) =>
+      set((state) => ({
+        deal: {
+          ...state.deal,
+          notes: [{ ...note, text: note.text.slice(0, STATUS_NOTE_MAX_LENGTH), id: `note-${Date.now()}`, createdAt: touch() }, ...state.deal.notes]
+        }
+      })),
+    resetDemo: () => set({ deal: createSeedDeal() })
+  })
 );

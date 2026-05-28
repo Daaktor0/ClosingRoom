@@ -1,5 +1,5 @@
 import { ClosingRoomApp } from "@/components/ClosingRoomApp";
 
-export default function Home() {
+export default function DemoPage() {
   return <ClosingRoomApp />;
 }

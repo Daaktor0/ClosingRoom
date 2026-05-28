@@ -1,5 +1,5 @@
 import { Document, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer";
-import { phases, globalDisclaimer } from "./constants";
+import { phases, globalDisclaimer, statutoryVerificationDisclaimer } from "./constants";
 import { formatDate, formatDeadlinePair, getComputedDueDate, getComputedStatutoryDate, parseLocalDate } from "./dateUtils";
 import { getCompletionPercent, getOwnerPendingCounts, getPhaseTasks, getReadiness, getUpcomingDeadlines } from "./rules";
 import { percent } from "./utils";
@@ -200,6 +200,29 @@ export function ClosingStatusReport({ deal }: { deal: Deal }) {
           <View key={task.id} style={styles.listItem} wrap={false}>
             <Text style={styles.bullet}>•</Text>
             <Text style={styles.listText}>{task.serialNumber} ({task.status}): {formatDeadlinePair(task, deal.closingDateX)} - {task.action}</Text>
+          </View>
+        ))}
+
+        <Text style={styles.sectionTitle}>Full task register</Text>
+        <View style={styles.tableHeader}>
+          <Text style={[styles.th, { width: "8%" }]}>S.No.</Text>
+          <Text style={[styles.th, { width: "34%" }]}>Task</Text>
+          <Text style={[styles.th, { width: "14%" }]}>Status</Text>
+          <Text style={[styles.th, { width: "14%" }]}>Owner</Text>
+          <Text style={[styles.th, { width: "14%" }]}>Due</Text>
+          <Text style={[styles.th, { width: "16%" }]}>Source</Text>
+        </View>
+        {deal.tasks.map((task) => (
+          <View key={task.id} style={styles.tableRow} wrap={false}>
+            <Text style={[styles.td, { width: "8%" }]}>{task.serialNumber}</Text>
+            <Text style={[styles.td, { width: "34%" }]}>
+              {task.action}
+              {task.filing || task.statutoryDeadlineNote ? ` Verify with counsel. ${statutoryVerificationDisclaimer}` : ""}
+            </Text>
+            <Text style={[styles.td, { width: "14%" }]}>{task.status}</Text>
+            <Text style={[styles.td, { width: "14%" }]}>{task.owner}</Text>
+            <Text style={[styles.td, { width: "14%" }]}>{formatDeadlinePair(task, deal.closingDateX)}</Text>
+            <Text style={[styles.td, { width: "16%" }]}>{task.sourceReference}</Text>
           </View>
         ))}
 

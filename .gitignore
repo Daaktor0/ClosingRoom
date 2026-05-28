@@ -8,3 +8,5 @@ out/
 npm-debug.log*
 .claude/
 data/
+
+.vercel

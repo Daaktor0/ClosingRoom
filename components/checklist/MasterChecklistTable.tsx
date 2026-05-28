@@ -1,9 +1,9 @@
 "use client";
 
-import { ChevronDown, ChevronRight, Search } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Search } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
 import { Badge, Button, Card, Field, SectionHeader, inputClass } from "@/components/ui";
-import { confidentialityReminder, documentStatuses, phases, responsibleParties, STATUS_NOTE_MAX_LENGTH, taskStatuses } from "@/lib/constants";
+import { confidentialityReminder, documentStatuses, phases, responsibleParties, STATUS_NOTE_MAX_LENGTH, statutoryVerificationDisclaimer, taskStatuses } from "@/lib/constants";
 import { deadlineCountdownLabel, deadlineUrgencyTone, formatDate, getComputedDueDate, getComputedStatutoryDate, getDeadlineUrgency, isOverdue } from "@/lib/dateUtils";
 import { useDealStore } from "@/lib/store";
 import type { DocumentStatus, Phase, ResponsibleParty, Task, TaskStatus } from "@/lib/types";
@@ -137,7 +137,15 @@ export function MasterChecklistTable() {
                         <span className="text-[var(--muted)]">-</span>
                       )}
                     </td>
-                    <td className="max-w-[360px] px-3 py-3 leading-relaxed">{task.action}</td>
+                    <td className="max-w-[360px] px-3 py-3 leading-relaxed">
+                      <p>{task.action}</p>
+                      {task.filing || task.statutoryDeadlineNote ? (
+                        <span className="mt-2 inline-flex items-start gap-1.5 rounded-md border border-yellow-700/30 bg-yellow-700/10 px-2 py-1 text-xs leading-snug text-[var(--warning)]">
+                          <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                          Verify with counsel
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="px-3 py-3">{task.parties.join(", ")}</td>
                     <td className="px-3 py-3">
                       <select className={inputClass} value={task.status} onChange={(event) => updateTaskStatus(task.id, event.target.value as TaskStatus)}>
@@ -188,6 +196,11 @@ export function MasterChecklistTable() {
                               {task.filing?.statutoryDays ? `; statutory: ${task.filing.statutoryDays} days from ${task.filing.statutoryTrigger}` : ""}
                               {task.statutoryDeadlineNote && !task.filing?.statutoryDays ? `; ${task.statutoryDeadlineNote}` : ""}
                             </p>
+                            {task.filing || task.statutoryDeadlineNote ? (
+                              <p className="mt-2 rounded-md border border-yellow-700/30 bg-yellow-700/10 p-2 text-xs leading-relaxed text-[var(--warning)]">
+                                {statutoryVerificationDisclaimer}
+                              </p>
+                            ) : null}
                           </div>
                           <div className="lg:col-span-2">
                             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">Comments / remarks</p>
@@ -204,7 +217,7 @@ export function MasterChecklistTable() {
                             <span className="text-xs text-[var(--muted)]">{task.notes.length}/{STATUS_NOTE_MAX_LENGTH}</span>
                           </Field>
                           <div className="lg:col-span-3 flex flex-wrap items-center gap-2">
-                            <Badge>{task.sourceReference}</Badge>
+                            <Badge>Source: {task.sourceReference}</Badge>
                             <Badge>Reviewer: {task.reviewer}</Badge>
                             {task.filing ? <Badge tone="accent">{task.filing.form} - {task.filing.authority}</Badge> : null}
                           </div>

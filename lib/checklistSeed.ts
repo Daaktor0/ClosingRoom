@@ -734,23 +734,100 @@ export const seedNotes: DealNote[] = [
 
 export const seedDeal: Deal = {
   id: "deal-seed-financing",
-  name: "Seed Financing Closing",
-  companyName: "Insert Name of Investee Company",
-  investorName: "Lead Investor",
+  name: "Series A Closing",
+  companyName: "Aarohan Labs Private Limited",
+  investorName: "Banyan Growth Fund I",
   closingDateX: "",
   firmLabel: "FIRM",
   tasks: seedTasks,
   notes: seedNotes
 };
 
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function toInputDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function cloneTask(task: Task): Task {
+  return {
+    ...task,
+    dependencies: task.dependencies.map((dependency) => ({ ...dependency })),
+    evidence: { ...task.evidence },
+    filing: task.filing ? { ...task.filing } : undefined
+  };
+}
+
 export function createSeedDeal(): Deal {
+  const closingDateX = toInputDate(addDays(new Date(), -4));
+  const demoPatches: Record<string, Partial<Task>> = {
+    "pre-transaction-documents": {
+      status: "Completed",
+      documentStatus: "Agreed Form",
+      evidence: { required: true, satisfied: true, label: "Agreed-form transaction documents" }
+    },
+    "pre-stamp-papers": {
+      status: "Completed",
+      documentStatus: "Executed",
+      evidence: { required: true, satisfied: true, label: "Stamp paper procurement proof" }
+    },
+    "pre-disclosure-letter": {
+      status: "Under Review",
+      documentStatus: "Draft Shared"
+    },
+    "cp-due-diligence": {
+      status: "Completed",
+      evidence: { required: true, satisfied: true, label: "Diligence closure tracker / issue resolution evidence" }
+    },
+    "cp-valuation-certificate": {
+      status: "Completed",
+      documentStatus: "Executed",
+      evidence: { required: true, satisfied: true, label: "Signed valuation report / FEMA pricing certificate register link" }
+    },
+    "cp-board-notice-issuance": {
+      status: "Completed",
+      documentStatus: "Executed",
+      evidence: { required: true, satisfied: true, label: "Board notice and draft resolutions" }
+    },
+    "cp-board-approval": {
+      status: "Completed",
+      documentStatus: "Executed",
+      evidence: { required: true, satisfied: true, label: "Executed board resolution extracts" }
+    },
+    "cp-egm-notice": {
+      status: "Completed",
+      documentStatus: "Executed",
+      evidence: { required: true, satisfied: true, label: "EGM notice and draft shareholder resolutions" }
+    },
+    "cp-egm-approval": {
+      status: "Blocked",
+      notes: "Demo blocker: investor counsel has asked for the updated articles approval pack before clearing the EGM extracts."
+    },
+    "cp-sh7-mgt14": {
+      status: "Blocked",
+      notes: "Demo blocker: statutory filing cannot be closed until the EGM approval position is confirmed."
+    },
+    "closing-board-approval": {
+      status: "Blocked",
+      notes: "Demo blocker: allotment approval is held until remittance evidence and CP fulfilment are both clear."
+    },
+    "post-pas-3": {
+      status: "Not Started",
+      notes: "Demo overdue item: PAS-3 reminder should fire after allotment/closing."
+    }
+  };
+
   return {
     ...seedDeal,
-    tasks: seedTasks.map((task) => ({
-      ...task,
-      dependencies: task.dependencies.map((dependency) => ({ ...dependency })),
-      evidence: { ...task.evidence }
-    })),
+    closingDateX,
+    tasks: seedTasks.map((task) => ({ ...cloneTask(task), ...demoPatches[task.id] })),
     notes: seedNotes.map((note) => ({ ...note }))
   };
 }

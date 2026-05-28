@@ -47,3 +47,6 @@ export const confidentialityReminder =
 
 export const globalDisclaimer =
   "This tool tracks deal status only. Do not enter confidential, privileged, or client-identifying material. Nothing here is legal advice.";
+
+export const statutoryVerificationDisclaimer =
+  "Verify statutory timing, filing mechanics, and legal effect with qualified counsel before relying on this item.";
