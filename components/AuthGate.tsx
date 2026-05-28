@@ -86,15 +86,16 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     return (
       <main className="grid min-h-screen place-items-center px-4">
         <Card className="w-full max-w-xl">
-          <SectionHeader eyebrow="Supabase" title="Environment variables required" />
+          <SectionHeader eyebrow="Supabase" title={config.invalid.length ? "Public API key required" : "Environment variables required"} />
           <p className="text-sm leading-relaxed text-[var(--muted)]">
-            Add these variables locally and in Vercel, then restart/redeploy the app:
+            Add the Supabase project URL and anon public or publishable key locally and in Vercel, then restart/redeploy the app. Do not use the service-role key or any key starting with sb_secret_ in a browser environment variable.
           </p>
           <pre className="mt-4 overflow-x-auto rounded-md border border-[var(--line)] bg-[var(--panel-strong)] p-3 text-xs">
 {`NEXT_PUBLIC_SUPABASE_URL="https://ntalqqaazamrciwzitky.supabase.co"
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="your-publishable-or-anon-key"`}
           </pre>
-          <p className="mt-3 text-xs text-[var(--muted)]">Missing: {config.missing.join(", ")}</p>
+          {config.missing.length ? <p className="mt-3 text-xs text-[var(--muted)]">Missing: {config.missing.join(", ")}</p> : null}
+          {config.invalid.length ? <p className="mt-3 text-xs text-[var(--danger)]">{config.invalid.join(", ")}</p> : null}
         </Card>
       </main>
     );
