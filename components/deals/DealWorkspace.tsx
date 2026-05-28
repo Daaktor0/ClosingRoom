@@ -6,22 +6,26 @@ import { ClosingRoomApp } from "@/components/ClosingRoomApp";
 import { Button, Card, SectionHeader } from "@/components/ui";
 import { useDealStore } from "@/lib/store";
 
-export function DealWorkspace({ dealId }: { dealId?: string }) {
+export function DealWorkspace({ dealId, local = false }: { dealId?: string; local?: boolean }) {
   const loadDealById = useDealStore((state) => state.loadDealById);
   const loadFromSupabase = useDealStore((state) => state.loadFromSupabase);
+  const enterLocalMode = useDealStore((state) => state.enterLocalMode);
+  const localMode = useDealStore((state) => state.localMode);
   const syncStatus = useDealStore((state) => state.syncStatus);
   const syncMessage = useDealStore((state) => state.syncMessage);
   const loadedDealId = useDealStore((state) => state.deal.id);
 
   useEffect(() => {
-    if (dealId) {
+    if (local) {
+      enterLocalMode();
+    } else if (dealId) {
       loadDealById(dealId);
     } else {
       loadFromSupabase();
     }
-  }, [dealId, loadDealById, loadFromSupabase]);
+  }, [local, dealId, enterLocalMode, loadDealById, loadFromSupabase]);
 
-  if (syncStatus === "error") {
+  if (!local && syncStatus === "error") {
     return (
       <main className="grid min-h-screen place-items-center px-4">
         <Card className="w-full max-w-md">
@@ -35,7 +39,11 @@ export function DealWorkspace({ dealId }: { dealId?: string }) {
     );
   }
 
-  const ready = dealId ? loadedDealId === dealId : syncStatus === "idle" && syncMessage === "Saved in Supabase";
+  const ready = local
+    ? localMode
+    : dealId
+      ? loadedDealId === dealId
+      : syncStatus === "idle" && syncMessage === "Saved in Supabase";
 
   if (!ready) {
     return (

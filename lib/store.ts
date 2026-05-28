@@ -11,8 +11,10 @@ interface DealStore {
   deal: Deal;
   syncStatus: "idle" | "loading" | "saving" | "error";
   syncMessage: string;
+  localMode: boolean;
   loadFromSupabase: () => Promise<void>;
   loadDealById: (dealId: string) => Promise<void>;
+  enterLocalMode: () => void;
   signOut: () => Promise<void>;
   setClosingDate: (closingDateX: string) => void;
   updateDealMeta: (patch: Pick<Deal, "name" | "companyName" | "investorName">) => void;
@@ -30,10 +32,18 @@ function touch(): string {
 
 type SetDealStore = (partial: Partial<DealStore> | ((state: DealStore) => Partial<DealStore>)) => void;
 
+const LOCAL_DEMO_MESSAGE = "Local demo - changes are not saved";
+
 let saveQueue: Promise<unknown> = Promise.resolve();
 let saveSequence = 0;
+let localModeFlag = false;
 
 function withSaveStatus(set: SetDealStore, action: () => Promise<unknown>) {
+  if (localModeFlag) {
+    set({ syncStatus: "idle", syncMessage: LOCAL_DEMO_MESSAGE });
+    return;
+  }
+
   const sequence = ++saveSequence;
   set({ syncStatus: "saving", syncMessage: "Saving to Supabase..." });
 
@@ -53,8 +63,10 @@ export const useDealStore = create<DealStore>()(
     deal: createSeedDeal(),
     syncStatus: "idle",
     syncMessage: "Local demo data",
+    localMode: false,
     loadFromSupabase: async () => {
-      set({ syncStatus: "loading", syncMessage: "Loading Supabase data..." });
+      localModeFlag = false;
+      set({ localMode: false, syncStatus: "loading", syncMessage: "Loading Supabase data..." });
       try {
         const deal = await loadOrCreateCurrentDeal();
         set({ deal, syncStatus: "idle", syncMessage: "Saved in Supabase" });
@@ -63,13 +75,18 @@ export const useDealStore = create<DealStore>()(
       }
     },
     loadDealById: async (dealId) => {
-      set({ syncStatus: "loading", syncMessage: "Loading deal..." });
+      localModeFlag = false;
+      set({ localMode: false, syncStatus: "loading", syncMessage: "Loading deal..." });
       try {
         const deal = await fetchDealById(dealId);
         set({ deal, syncStatus: "idle", syncMessage: "Saved in Supabase" });
       } catch (error) {
         set({ syncStatus: "error", syncMessage: error instanceof Error ? error.message : "Could not load this deal" });
       }
+    },
+    enterLocalMode: () => {
+      localModeFlag = true;
+      set({ deal: createSeedDeal(), localMode: true, syncStatus: "idle", syncMessage: LOCAL_DEMO_MESSAGE });
     },
     signOut: async () => {
       const supabase = getSupabaseClient();
@@ -145,6 +162,10 @@ export const useDealStore = create<DealStore>()(
         ));
     },
     resetDemo: async () => {
+      if (localModeFlag) {
+        set({ deal: createSeedDeal(), syncStatus: "idle", syncMessage: LOCAL_DEMO_MESSAGE });
+        return;
+      }
       set({ syncStatus: "saving", syncMessage: "Resetting Supabase data..." });
       try {
         const deal = await resetCurrentDeal(get().deal.id);

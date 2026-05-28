@@ -1,10 +1,5 @@
-import { AuthGate } from "@/components/AuthGate";
 import { DealWorkspace } from "@/components/deals/DealWorkspace";
 
 export default function DemoPage() {
-  return (
-    <AuthGate>
-      <DealWorkspace />
-    </AuthGate>
-  );
+  return <DealWorkspace local />;
 }

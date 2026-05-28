@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpenText, BriefcaseBusiness, CalendarRange, CheckSquare2, DatabaseZap, FileArchive, GitBranch, LayoutDashboard, LogOut, Moon, Presentation, RotateCcw, ShieldAlert, Sun } from "lucide-react";
+import { BookOpenText, BriefcaseBusiness, CalendarRange, CheckSquare2, DatabaseZap, FileArchive, GitBranch, LayoutDashboard, LogIn, LogOut, Moon, Presentation, RotateCcw, ShieldAlert, Sun } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ClosingReadiness } from "@/components/checklist/ClosingReadiness";
@@ -39,6 +39,7 @@ export function ClosingRoomApp() {
   const [mounted, setMounted] = useState(false);
   const [partnerMode, setPartnerMode] = useState(false);
   const deal = useDealStore((state) => state.deal);
+  const localMode = useDealStore((state) => state.localMode);
   const resetDemo = useDealStore((state) => state.resetDemo);
   const signOut = useDealStore((state) => state.signOut);
   const syncStatus = useDealStore((state) => state.syncStatus);
@@ -104,9 +105,15 @@ export function ClosingRoomApp() {
               <Button variant="danger" onClick={resetDemo} title="Reset demo data">
                 <RotateCcw size={16} /> Reset demo data
               </Button>
-              <Button variant="secondary" onClick={signOut} title="Sign out">
-                <LogOut size={16} /> Sign out
-              </Button>
+              {localMode ? (
+                <Link href="/deals" className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-transparent bg-[var(--foreground)] px-3 py-2 text-sm font-medium text-[var(--background)] transition hover:opacity-90">
+                  <LogIn size={16} /> Sign in to save
+                </Link>
+              ) : (
+                <Button variant="secondary" onClick={signOut} title="Sign out">
+                  <LogOut size={16} /> Sign out
+                </Button>
+              )}
             </div>
           </div>
 
