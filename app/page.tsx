@@ -34,7 +34,12 @@ const navItems: { view: View; icon: React.ReactNode }[] = [
 export default function Home() {
   const [view, setView] = useState<View>("Dashboard");
   const [dark, setDark] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const resetDemo = useDealStore((state) => state.resetDemo);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
@@ -110,7 +115,18 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1560px] px-4 py-5 lg:px-6">{content}</div>
+      <div className="mx-auto max-w-[1560px] px-4 py-5 lg:px-6">
+        {mounted ? content : (
+          <div className="grid gap-4" aria-hidden>
+            <div className="h-32 animate-pulse rounded-md border border-[var(--line)] bg-[var(--panel-strong)]/40" />
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="h-28 animate-pulse rounded-md border border-[var(--line)] bg-[var(--panel-strong)]/40" />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       <footer className="sticky bottom-0 z-10 border-t border-[var(--line)] bg-[var(--panel-strong)]/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1560px] items-center gap-2 px-4 py-2.5 text-xs text-[var(--muted)] lg:px-6">
