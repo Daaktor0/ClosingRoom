@@ -38,7 +38,7 @@ export function getReadiness(deal: Deal): ReadinessResult {
   const convertedToCs = cps.filter((task) => task.status === "Converted to CS");
   const blockers = tasks.filter((task) => task.blocker && !isTaskSatisfiedForClosing(task));
   const missingEvidence = closingPrerequisites.filter(
-    (task) => task.evidence.required && !task.evidence.uploaded && !["Waived", "Converted to CS", "Not Applicable"].includes(task.status)
+    (task) => task.evidence.required && !task.evidence.satisfied && !["Waived", "Converted to CS", "Not Applicable"].includes(task.status)
   );
   const missingAgreedForm = closingPrerequisites.filter(
     (task) => task.agreedFormRequired && task.documentStatus !== "Agreed Form" && task.documentStatus !== "Executed" && task.status !== "Waived"

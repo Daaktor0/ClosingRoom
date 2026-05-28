@@ -78,10 +78,9 @@ export type NoteCategory =
 
 export interface Evidence {
   required: boolean;
-  uploaded: boolean;
+  satisfied: boolean;
   label: string;
   externalLink?: string;
-  link?: string;
 }
 
 export interface DealDocument {

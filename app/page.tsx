@@ -13,6 +13,7 @@ import { NotesPanel } from "@/components/NotesPanel";
 import { RiskHeatmap } from "@/components/risk/RiskHeatmap";
 import { TimelineView } from "@/components/timeline/TimelineView";
 import { Badge, Button, Tooltip } from "@/components/ui";
+import { globalDisclaimer } from "@/lib/constants";
 import { glossary } from "@/lib/glossary";
 import { useDealStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -110,6 +111,13 @@ export default function Home() {
       </div>
 
       <div className="mx-auto max-w-[1560px] px-4 py-5 lg:px-6">{content}</div>
+
+      <footer className="sticky bottom-0 z-10 border-t border-[var(--line)] bg-[var(--panel-strong)]/95 backdrop-blur">
+        <div className="mx-auto flex max-w-[1560px] items-center gap-2 px-4 py-2.5 text-xs text-[var(--muted)] lg:px-6">
+          <ShieldAlert size={14} className="shrink-0 text-[var(--accent)]" />
+          <p>{globalDisclaimer}</p>
+        </div>
+      </footer>
     </main>
   );
 }

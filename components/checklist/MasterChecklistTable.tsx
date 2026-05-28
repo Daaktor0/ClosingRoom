@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight, Search } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
 import { Badge, Button, Card, Field, SectionHeader, inputClass } from "@/components/ui";
 import { confidentialityReminder, documentStatuses, phases, responsibleParties, STATUS_NOTE_MAX_LENGTH, taskStatuses } from "@/lib/constants";
-import { formatDate, getComputedDueDate, getComputedStatutoryDate, isOverdue } from "@/lib/dateUtils";
+import { deadlineCountdownLabel, deadlineUrgencyTone, formatDate, getComputedDueDate, getComputedStatutoryDate, getDeadlineUrgency, isOverdue } from "@/lib/dateUtils";
 import { useDealStore } from "@/lib/store";
 import type { DocumentStatus, Phase, ResponsibleParty, Task, TaskStatus } from "@/lib/types";
 
@@ -111,6 +111,8 @@ export function MasterChecklistTable() {
             {filteredTasks.map((task) => {
               const open = expanded === task.id;
               const statutoryDate = getComputedStatutoryDate(task, deal.closingDateX);
+              const urgency = getDeadlineUrgency(task, deal.closingDateX);
+              const countdown = deadlineCountdownLabel(task, deal.closingDateX);
               return (
                 <Fragment key={task.id}>
                   <tr className="border-b border-[var(--line)] align-top hover:bg-[var(--panel-strong)]/60">
@@ -122,7 +124,10 @@ export function MasterChecklistTable() {
                     </td>
                     <td className="px-3 py-3">{task.phase}</td>
                     <td className="px-3 py-3"><Badge>{task.timeline}</Badge></td>
-                    <td className="px-3 py-3">{formatDate(getComputedDueDate(task, deal.closingDateX))}</td>
+                    <td className="px-3 py-3">
+                      <Badge tone={deadlineUrgencyTone[urgency]}>{formatDate(getComputedDueDate(task, deal.closingDateX))}</Badge>
+                      {countdown ? <span className="mt-1 block text-xs text-[var(--muted)]">{countdown}</span> : null}
+                    </td>
                     <td className="px-3 py-3">
                       {task.filing?.statutoryDays || task.statutoryDeadlineNote ? (
                         <Badge tone={task.filing?.statutoryDays ? "warning" : "neutral"}>
@@ -141,8 +146,8 @@ export function MasterChecklistTable() {
                     </td>
                     <td className="px-3 py-3">
                       <label className="inline-flex items-center gap-2">
-                        <input type="checkbox" checked={task.evidence.uploaded} onChange={(event) => updateTaskEvidence(task.id, { uploaded: event.target.checked })} />
-                        <span>{task.evidence.uploaded ? "Satisfied" : "Missing"}</span>
+                        <input type="checkbox" checked={task.evidence.satisfied} onChange={(event) => updateTaskEvidence(task.id, { satisfied: event.target.checked })} />
+                        <span>{task.evidence.satisfied ? "Satisfied" : "Missing"}</span>
                       </label>
                     </td>
                     <td className="px-3 py-3"><Badge tone={task.priority === "Critical" ? "danger" : "neutral"}>{task.riskCategory}</Badge></td>

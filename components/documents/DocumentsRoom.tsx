@@ -33,7 +33,7 @@ export function DocumentsRoom() {
                         <p className="text-sm font-medium">{task.serialNumber} - {task.evidence.label}</p>
                         <p className="mt-1 text-xs text-[var(--muted)]">{task.action}</p>
                       </div>
-                      {task.evidence.uploaded ? <Badge tone="success">Evidence satisfied</Badge> : <Badge tone={task.evidence.required ? "warning" : "neutral"}>Missing</Badge>}
+                      {task.evidence.satisfied ? <Badge tone="success">Evidence satisfied</Badge> : <Badge tone={task.evidence.required ? "warning" : "neutral"}>Missing</Badge>}
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <Field label="Document status">
@@ -42,7 +42,7 @@ export function DocumentsRoom() {
                         </select>
                       </Field>
                       <label className="mt-6 inline-flex items-center gap-2 text-sm text-[var(--muted)]">
-                        <input type="checkbox" checked={task.evidence.uploaded} onChange={(event) => updateTaskEvidence(task.id, { uploaded: event.target.checked })} />
+                        <input type="checkbox" checked={task.evidence.satisfied} onChange={(event) => updateTaskEvidence(task.id, { satisfied: event.target.checked })} />
                         Mark evidence satisfied / linked
                       </label>
                     </div>

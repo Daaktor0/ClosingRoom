@@ -44,3 +44,6 @@ export const STATUS_NOTE_MAX_LENGTH = 280;
 
 export const confidentialityReminder =
   "Status only: do not enter confidential, privileged, client-identifying, or document-content material.";
+
+export const globalDisclaimer =
+  "This tool tracks deal status only. Do not enter confidential, privileged, or client-identifying material. Nothing here is legal advice.";

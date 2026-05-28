@@ -79,4 +79,30 @@ export function daysUntil(task: Task, closingDateX: string, now = new Date()): n
   return Math.ceil((dueDate.getTime() - today.getTime()) / 86_400_000);
 }
 
+export type DeadlineUrgency = "overdue" | "due-soon" | "upcoming" | "none";
+
+export function getDeadlineUrgency(task: Task, closingDateX: string, now = new Date()): DeadlineUrgency {
+  if (["Completed", "Waived", "Converted to CS", "Not Applicable"].includes(task.status)) return "none";
+  const days = daysUntil(task, closingDateX, now);
+  if (days === null) return "none";
+  if (days < 0) return "overdue";
+  if (days <= 7) return "due-soon";
+  return "upcoming";
+}
+
+export const deadlineUrgencyTone: Record<DeadlineUrgency, "neutral" | "warning" | "danger"> = {
+  overdue: "danger",
+  "due-soon": "warning",
+  upcoming: "neutral",
+  none: "neutral"
+};
+
+export function deadlineCountdownLabel(task: Task, closingDateX: string, now = new Date()): string | null {
+  const days = daysUntil(task, closingDateX, now);
+  if (days === null) return null;
+  if (days < 0) return `${Math.abs(days)}d overdue`;
+  if (days === 0) return "Due today";
+  return `${days}d left`;
+}
+
 export const timelineBuckets: TimelineCode[] = ["Prior to X", "X", "X+10", "X+30", "X+60", "X+90"];

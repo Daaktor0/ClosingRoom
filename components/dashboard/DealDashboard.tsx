@@ -3,7 +3,7 @@
 import { AlertTriangle, CalendarClock, CheckCircle2, CircleAlert, FileClock, Scale } from "lucide-react";
 import { Badge, Card, Field, ProgressBar, SectionHeader, inputClass } from "@/components/ui";
 import { phases } from "@/lib/constants";
-import { formatDeadlinePair, formatDate, getComputedDueDate, getComputedStatutoryDate } from "@/lib/dateUtils";
+import { deadlineCountdownLabel, deadlineUrgencyTone, formatDeadlinePair, formatDate, getComputedDueDate, getComputedStatutoryDate, getDeadlineUrgency } from "@/lib/dateUtils";
 import { getCompletionPercent, getCriticalPathTasks, getNextBestAction, getOverdueTasks, getPhaseTasks, getPostClosingComplianceScore, getReadiness, getUpcomingDeadlines } from "@/lib/rules";
 import { useDealStore } from "@/lib/store";
 import { percent } from "@/lib/utils";
@@ -64,7 +64,7 @@ export function DealDashboard() {
             <Badge tone={nextBestAction.priority === "Critical" ? "danger" : "warning"}>{nextBestAction.priority}</Badge>
             {nextBestAction.blocker ? <Badge tone="danger">Closing blocker</Badge> : null}
             <Badge>{nextBestAction.owner}</Badge>
-            <Badge>{formatDeadlinePair(nextBestAction, deal.closingDateX)}</Badge>
+            <Badge tone={deadlineUrgencyTone[getDeadlineUrgency(nextBestAction, deal.closingDateX)]}>{formatDeadlinePair(nextBestAction, deal.closingDateX)}</Badge>
           </div>
         </Card>
       ) : null}
@@ -85,6 +85,8 @@ export function DealDashboard() {
             {upcoming.length ? (
               upcoming.map((task) => {
                 const statutoryDate = getComputedStatutoryDate(task, deal.closingDateX);
+                const urgency = getDeadlineUrgency(task, deal.closingDateX);
+                const countdown = deadlineCountdownLabel(task, deal.closingDateX);
                 return (
                   <div key={task.id} className="flex items-start justify-between gap-3 rounded-md border border-[var(--line)] p-3">
                     <div>
@@ -92,7 +94,8 @@ export function DealDashboard() {
                       <p className="mt-1 text-xs text-[var(--muted)]">{task.owner} - {task.phase}</p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <Badge tone={task.priority === "Critical" ? "danger" : "neutral"}>{formatDate(getComputedDueDate(task, deal.closingDateX))}</Badge>
+                      <Badge tone={deadlineUrgencyTone[urgency]}>{formatDate(getComputedDueDate(task, deal.closingDateX))}</Badge>
+                      {countdown ? <span className="text-right text-xs text-[var(--muted)]">{countdown}</span> : null}
                       {task.filing?.statutoryDays || task.statutoryDeadlineNote ? (
                         <span className="text-right text-xs text-[var(--muted)]">
                           {statutoryDate ? `Statutory ${formatDate(statutoryDate)}` : formatDeadlinePair(task, deal.closingDateX)}

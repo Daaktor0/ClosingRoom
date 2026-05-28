@@ -36,7 +36,7 @@ export function exportTasksCsv(deal: Deal): string {
     task.action,
     task.parties.join("; "),
     task.status,
-    `${task.evidence.uploaded ? "Satisfied / linked" : "Missing"} - ${task.evidence.label}`,
+    `${task.evidence.satisfied ? "Satisfied / linked" : "Missing"} - ${task.evidence.label}`,
     task.riskCategory,
     task.blocker ? "Yes" : "No",
     task.owner,
