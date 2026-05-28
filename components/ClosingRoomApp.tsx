@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpenText, BriefcaseBusiness, CalendarRange, CheckSquare2, DatabaseZap, FileArchive, GitBranch, LayoutDashboard, Moon, RotateCcw, ShieldAlert, Sun } from "lucide-react";
+import { BookOpenText, BriefcaseBusiness, CalendarRange, CheckSquare2, DatabaseZap, FileArchive, GitBranch, LayoutDashboard, LogOut, Moon, RotateCcw, ShieldAlert, Sun } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ClosingReadiness } from "@/components/checklist/ClosingReadiness";
@@ -36,7 +36,11 @@ export function ClosingRoomApp() {
   const [view, setView] = useState<View>("Dashboard");
   const [dark, setDark] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const deal = useDealStore((state) => state.deal);
   const resetDemo = useDealStore((state) => state.resetDemo);
+  const signOut = useDealStore((state) => state.signOut);
+  const syncStatus = useDealStore((state) => state.syncStatus);
+  const syncMessage = useDealStore((state) => state.syncMessage);
 
   useEffect(() => {
     setMounted(true);
@@ -71,14 +75,17 @@ export function ClosingRoomApp() {
             <div>
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <Badge tone="accent">Indian fundraise control room</Badge>
-                <Badge>Demo deal</Badge>
+                <Badge>{deal.companyName}</Badge>
               </div>
-              <h1 className="text-3xl font-semibold tracking-normal md:text-4xl">Fundraise Closing Tracker</h1>
+              <h1 className="text-3xl font-semibold tracking-normal md:text-4xl">{deal.name}</h1>
               <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[var(--muted)]">
-                A deal-closing control room for CPs, X-relative deadlines, evidence, dependencies, statutory filings and closing readiness.
+                {deal.companyName} &middot; {deal.investorName} &mdash; CPs, X-relative deadlines, evidence, dependencies, statutory filings and closing readiness.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <Badge tone={syncStatus === "error" ? "danger" : syncStatus === "saving" || syncStatus === "loading" ? "warning" : "success"}>
+                {syncMessage}
+              </Badge>
               <Link href="/deals" className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--panel-strong)]">
                 <BriefcaseBusiness size={16} /> Deals
               </Link>
@@ -87,6 +94,9 @@ export function ClosingRoomApp() {
               </Button>
               <Button variant="danger" onClick={resetDemo} title="Reset demo data">
                 <RotateCcw size={16} /> Reset demo data
+              </Button>
+              <Button variant="secondary" onClick={signOut} title="Sign out">
+                <LogOut size={16} /> Sign out
               </Button>
             </div>
           </div>

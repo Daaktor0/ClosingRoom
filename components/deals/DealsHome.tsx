@@ -2,11 +2,13 @@
 
 import { ArrowDownUp, CalendarClock, CheckCircle2, CircleAlert, Plus, ShieldAlert } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { Badge, Button, Card, Field, ProgressBar, SectionHeader, inputClass } from "@/components/ui";
-import { createNewPortfolioDeal, createPortfolioDeals, type DealStatus, type PortfolioDeal } from "@/lib/dealPortfolio";
+import type { DealStatus, PortfolioDeal } from "@/lib/dealPortfolio";
 import { daysUntil, formatDate, getComputedDueDate, getComputedStatutoryDate } from "@/lib/dateUtils";
 import { getNextBestAction, getReadiness, isTaskComplete } from "@/lib/rules";
+import { createDeal, listDeals } from "@/lib/supabasePersistence";
 import type { Task } from "@/lib/types";
 
 type SortKey = "closingDate" | "readiness" | "dealName";
@@ -37,17 +39,39 @@ function statusTone(status: DealStatus): "neutral" | "success" | "warning" {
 }
 
 export function DealsHome() {
-  const [deals, setDeals] = useState<PortfolioDeal[]>(() => createPortfolioDeals());
+  const router = useRouter();
+  const [deals, setDeals] = useState<PortfolioDeal[] | null>(null);
+  const [loadError, setLoadError] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("closingDate");
   const [statusFilter, setStatusFilter] = useState<DealStatus | "all">("active");
   const [ownerFilter, setOwnerFilter] = useState<OwnerFilter>("me");
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
   const [newDealName, setNewDealName] = useState("New Financing Closing");
+  const [newCompany, setNewCompany] = useState("Investee Company Private Limited");
+  const [newInvestor, setNewInvestor] = useState("Lead Investor");
   const [newClosingDate, setNewClosingDate] = useState("");
-  const [newLeadPartner, setNewLeadPartner] = useState("Meera Rao");
+
+  useEffect(() => {
+    let active = true;
+    listDeals()
+      .then((rows) => {
+        if (active) setDeals(rows);
+      })
+      .catch((error: Error) => {
+        if (active) {
+          setLoadError(error.message);
+          setDeals([]);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const rows = useMemo(() => {
-    return deals
+    return (deals ?? [])
       .filter((deal) => statusFilter === "all" || deal.status === statusFilter)
       .filter((deal) => ownerFilter === "all" || deal.assignedToCurrentUser)
       .sort((a, b) => {
@@ -58,15 +82,22 @@ export function DealsHome() {
       });
   }, [deals, ownerFilter, sortKey, statusFilter]);
 
-  function createDeal() {
+  async function handleCreateDeal() {
     if (!newDealName.trim() || !newClosingDate) return;
-    setDeals((current) => [
-      createNewPortfolioDeal({ name: newDealName.trim(), closingDateX: newClosingDate, leadPartner: newLeadPartner.trim() || "Meera Rao" }),
-      ...current
-    ]);
-    setWizardOpen(false);
-    setNewDealName("New Financing Closing");
-    setNewClosingDate("");
+    setCreating(true);
+    setCreateError("");
+    try {
+      const deal = await createDeal({
+        name: newDealName.trim(),
+        companyName: newCompany.trim() || "Investee Company Private Limited",
+        investorName: newInvestor.trim() || "Lead Investor",
+        closingDateX: newClosingDate
+      });
+      router.push(`/deals/${deal.id}`);
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : "Could not create the deal");
+      setCreating(false);
+    }
   }
 
   return (
@@ -77,7 +108,7 @@ export function DealsHome() {
             <div>
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <Badge tone="accent">Portfolio home</Badge>
-                <Badge>Server-data ready UI scaffold</Badge>
+                <Badge>{deals === null ? "Loading" : `${deals.length} deals`}</Badge>
               </div>
               <h1 className="text-3xl font-semibold tracking-normal md:text-4xl">Deals</h1>
               <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[var(--muted)]">
@@ -129,81 +160,118 @@ export function DealsHome() {
         {wizardOpen ? (
           <Card>
             <SectionHeader eyebrow="New deal wizard" title="Instantiate from India Seed Financing template" />
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <Field label="Deal name">
                 <input className={inputClass} value={newDealName} onChange={(event) => setNewDealName(event.target.value)} />
+              </Field>
+              <Field label="Company">
+                <input className={inputClass} value={newCompany} onChange={(event) => setNewCompany(event.target.value)} />
+              </Field>
+              <Field label="Investor">
+                <input className={inputClass} value={newInvestor} onChange={(event) => setNewInvestor(event.target.value)} />
               </Field>
               <Field label="Closing Date X">
                 <input className={inputClass} type="date" value={newClosingDate} onChange={(event) => setNewClosingDate(event.target.value)} />
               </Field>
-              <Field label="Lead partner">
-                <input className={inputClass} value={newLeadPartner} onChange={(event) => setNewLeadPartner(event.target.value)} />
-              </Field>
             </div>
+            {createError ? <p className="mt-3 rounded-md border border-red-700/30 bg-red-700/10 p-2 text-sm text-[var(--danger)]">{createError}</p> : null}
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <Badge>Template: India Seed Financing - Private Placement</Badge>
-              <Button onClick={createDeal} disabled={!newDealName.trim() || !newClosingDate}>Create deal</Button>
-              <Button variant="secondary" onClick={() => setWizardOpen(false)}>Cancel</Button>
+              <Button onClick={handleCreateDeal} disabled={creating || !newDealName.trim() || !newClosingDate}>
+                {creating ? "Creating..." : "Create deal"}
+              </Button>
+              <Button variant="secondary" onClick={() => setWizardOpen(false)} disabled={creating}>Cancel</Button>
             </div>
           </Card>
         ) : null}
 
-        <Card className="p-0">
-          <div className="overflow-x-auto scrollbar-thin">
-            <table className="w-full min-w-[1180px] border-collapse text-left text-sm">
-              <thead className="border-y border-[var(--line)] bg-[var(--panel-strong)] text-xs uppercase tracking-[0.1em] text-[var(--muted)]">
-                <tr>
-                  {["Deal", "Status", "Closing Date", "Readiness", "Next Blocking Item", "Next Statutory Deadline", "Lead Partner", "Open"].map((header) => (
-                    <th key={header} className="px-4 py-3 font-semibold">{header}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((deal) => {
-                  const readiness = getReadiness(deal);
-                  const statutoryDays = daysToNextStatutoryDeadline(deal);
-                  return (
-                    <tr key={deal.id} className="border-b border-[var(--line)] align-top hover:bg-[var(--panel-strong)]/60">
-                      <td className="px-4 py-4">
-                        <p className="font-semibold">{deal.name}</p>
-                        <p className="mt-1 text-xs text-[var(--muted)]">{deal.companyName} - {deal.investorName}</p>
-                        <p className="mt-1 text-xs text-[var(--muted)]">{deal.templateName}</p>
-                      </td>
-                      <td className="px-4 py-4"><Badge tone={statusTone(deal.status)}>{deal.status}</Badge></td>
-                      <td className="px-4 py-4">
-                        <span className="inline-flex items-center gap-2">
-                          <CalendarClock size={15} className="text-[var(--accent)]" />
-                          {formatDate(getComputedDueDate({ timeline: "X" }, deal.closingDateX))}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="w-36">
-                          <div className="mb-2 flex items-center justify-between gap-2">
-                            <span className="font-semibold">{readiness.score}%</span>
-                            {readiness.ready ? <CheckCircle2 size={15} className="text-[var(--success)]" /> : <CircleAlert size={15} className="text-[var(--danger)]" />}
+        {loadError ? (
+          <Card>
+            <SectionHeader eyebrow="Tracker" title="Could not load deals" />
+            <p className="text-sm text-[var(--danger)]">{loadError}</p>
+          </Card>
+        ) : null}
+
+        {deals === null ? (
+          <Card className="p-0">
+            <div className="grid gap-3 p-4">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="h-14 animate-pulse rounded-md border border-[var(--line)] bg-[var(--panel-strong)]/40" />
+              ))}
+            </div>
+          </Card>
+        ) : rows.length === 0 ? (
+          <Card>
+            <SectionHeader eyebrow="Portfolio" title="No deals match these filters" />
+            <p className="text-sm text-[var(--muted)]">
+              {deals.length === 0
+                ? "Create your first closing to start tracking CPs, statutory filings and readiness."
+                : "Adjust the status or owner filter, or create a new deal."}
+            </p>
+            <div className="mt-4">
+              <Button onClick={() => setWizardOpen(true)}>
+                <Plus size={16} /> New deal
+              </Button>
+            </div>
+          </Card>
+        ) : (
+          <Card className="p-0">
+            <div className="overflow-x-auto scrollbar-thin">
+              <table className="w-full min-w-[1180px] border-collapse text-left text-sm">
+                <thead className="border-y border-[var(--line)] bg-[var(--panel-strong)] text-xs uppercase tracking-[0.1em] text-[var(--muted)]">
+                  <tr>
+                    {["Deal", "Status", "Closing Date", "Readiness", "Next Blocking Item", "Next Statutory Deadline", "Lead Partner", "Open"].map((header) => (
+                      <th key={header} className="px-4 py-3 font-semibold">{header}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((deal) => {
+                    const readiness = getReadiness(deal);
+                    const statutoryDays = daysToNextStatutoryDeadline(deal);
+                    return (
+                      <tr key={deal.id} className="border-b border-[var(--line)] align-top hover:bg-[var(--panel-strong)]/60">
+                        <td className="px-4 py-4">
+                          <p className="font-semibold">{deal.name}</p>
+                          <p className="mt-1 text-xs text-[var(--muted)]">{deal.companyName} - {deal.investorName}</p>
+                          <p className="mt-1 text-xs text-[var(--muted)]">{deal.templateName}</p>
+                        </td>
+                        <td className="px-4 py-4"><Badge tone={statusTone(deal.status)}>{deal.status}</Badge></td>
+                        <td className="px-4 py-4">
+                          <span className="inline-flex items-center gap-2">
+                            <CalendarClock size={15} className="text-[var(--accent)]" />
+                            {formatDate(getComputedDueDate({ timeline: "X" }, deal.closingDateX))}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="w-36">
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              <span className="font-semibold">{readiness.score}%</span>
+                              {readiness.ready ? <CheckCircle2 size={15} className="text-[var(--success)]" /> : <CircleAlert size={15} className="text-[var(--danger)]" />}
+                            </div>
+                            <ProgressBar value={readiness.score} />
                           </div>
-                          <ProgressBar value={readiness.score} />
-                        </div>
-                      </td>
-                      <td className="max-w-[360px] px-4 py-4 leading-relaxed">{nextBlockingItem(deal)}</td>
-                      <td className="px-4 py-4">
-                        <Badge tone={statutoryDays !== null && statutoryDays < 0 ? "danger" : statutoryDays !== null && statutoryDays <= 7 ? "warning" : "neutral"}>
-                          {statutoryDays === null ? "No dated item" : statutoryDays < 0 ? `${Math.abs(statutoryDays)}d overdue` : statutoryDays === 0 ? "Due today" : `${statutoryDays}d`}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-4">{deal.leadPartner}</td>
-                      <td className="px-4 py-4">
-                        <Link href="/demo" className="inline-flex min-h-9 items-center justify-center rounded-md border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--panel-strong)]">
-                          Open
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                        </td>
+                        <td className="max-w-[360px] px-4 py-4 leading-relaxed">{nextBlockingItem(deal)}</td>
+                        <td className="px-4 py-4">
+                          <Badge tone={statutoryDays !== null && statutoryDays < 0 ? "danger" : statutoryDays !== null && statutoryDays <= 7 ? "warning" : "neutral"}>
+                            {statutoryDays === null ? "No dated item" : statutoryDays < 0 ? `${Math.abs(statutoryDays)}d overdue` : statutoryDays === 0 ? "Due today" : `${statutoryDays}d`}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-4">{deal.leadPartner}</td>
+                        <td className="px-4 py-4">
+                          <Link href={`/deals/${deal.id}`} className="inline-flex min-h-9 items-center justify-center rounded-md border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--panel-strong)]">
+                            Open
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
       </div>
     </main>
   );

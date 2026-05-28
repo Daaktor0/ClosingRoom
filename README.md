@@ -54,6 +54,8 @@ npm install      # install dependencies
 npm run dev      # start the dev server at http://localhost:3000
 ```
 
+Create `.env.local` from `.env.example` and set the Supabase project URL plus publishable/anon key before starting the app. The tracker signs in with Supabase Auth and stores deal/task/note data in Supabase Postgres under the signed-in user's organization.
+
 Open the app, set a **Closing Date X** on the Dashboard, then work the checklist — deadlines, readiness, and the next best action update live.
 
 ### Scripts

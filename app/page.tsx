@@ -1,5 +1,5 @@
-import { ClosingRoomApp } from "@/components/ClosingRoomApp";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return <ClosingRoomApp />;
+  redirect("/deals");
 }
