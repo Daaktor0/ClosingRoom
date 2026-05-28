@@ -79,7 +79,7 @@ function Bulleted({ items, emptyText }: { items: string[]; emptyText: string }) 
   );
 }
 
-function ClosingStatusReport({ deal }: { deal: Deal }) {
+export function ClosingStatusReport({ deal }: { deal: Deal }) {
   const readiness = getReadiness(deal);
   const cpTasks = getPhaseTasks(deal.tasks, "Conditions Precedent");
   const cpPercent = percent(cpTasks.filter((task) => closedStatuses.includes(task.status)).length, cpTasks.length);

@@ -37,7 +37,7 @@ function styleHeaderRow(ws: Worksheet, columnCount: number): void {
   ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: columnCount } };
 }
 
-export async function downloadExcelWorkbook(deal: Deal): Promise<void> {
+export async function buildWorkbook(deal: Deal) {
   const ExcelJS = (await import("exceljs")).default;
   const wb = new ExcelJS.Workbook();
   wb.creator = deal.firmLabel;
@@ -179,6 +179,11 @@ export async function downloadExcelWorkbook(deal: Deal): Promise<void> {
     .forEach(([owner, count]) => owners.addRow({ owner, count }));
   styleHeaderRow(owners, 2);
 
+  return wb;
+}
+
+export async function downloadExcelWorkbook(deal: Deal): Promise<void> {
+  const wb = await buildWorkbook(deal);
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   const url = URL.createObjectURL(blob);
