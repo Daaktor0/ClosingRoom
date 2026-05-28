@@ -214,9 +214,13 @@ async function createSeedDealInSupabase(organizationId: string, userId: string):
 
 async function insertSeedChildren(dealRow: DealRow, organizationId: string, userId: string, seed: Deal) {
   const supabase = requireClient();
+  // Callers only seed a deal that has zero tasks (createDeal on a fresh row,
+  // ensureDealHasTasks behind a !tasks.length guard), so a plain insert is
+  // safe and avoids depending on a deal_task unique constraint that may be
+  // missing on already-provisioned databases.
   const { error: tasksError } = await supabase
     .from("deal_task")
-    .upsert(seed.tasks.map((task) => toTaskRow(task, dealRow.id, organizationId)), { onConflict: "deal_id,source_task_id" });
+    .insert(seed.tasks.map((task) => toTaskRow(task, dealRow.id, organizationId)));
   failIf(tasksError);
 
   if (seed.notes.length) {
