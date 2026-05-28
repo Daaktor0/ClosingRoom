@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpenText, BriefcaseBusiness, CalendarRange, CheckSquare2, DatabaseZap, FileArchive, GitBranch, LayoutDashboard, LogOut, Moon, RotateCcw, ShieldAlert, Sun } from "lucide-react";
+import { BookOpenText, BriefcaseBusiness, CalendarRange, CheckSquare2, DatabaseZap, FileArchive, GitBranch, LayoutDashboard, LogOut, Moon, Presentation, RotateCcw, ShieldAlert, Sun } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ClosingReadiness } from "@/components/checklist/ClosingReadiness";
@@ -11,6 +11,7 @@ import { DocumentsRoom } from "@/components/documents/DocumentsRoom";
 import { ExportPanel } from "@/components/ExportPanel";
 import { ImportChecklist } from "@/components/ImportChecklist";
 import { NotesPanel } from "@/components/NotesPanel";
+import { PartnerMode } from "@/components/partner/PartnerMode";
 import { RiskHeatmap } from "@/components/risk/RiskHeatmap";
 import { TimelineView } from "@/components/timeline/TimelineView";
 import { Badge, Button, Tooltip } from "@/components/ui";
@@ -36,6 +37,7 @@ export function ClosingRoomApp() {
   const [view, setView] = useState<View>("Dashboard");
   const [dark, setDark] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [partnerMode, setPartnerMode] = useState(false);
   const deal = useDealStore((state) => state.deal);
   const resetDemo = useDealStore((state) => state.resetDemo);
   const signOut = useDealStore((state) => state.signOut);
@@ -67,6 +69,10 @@ export function ClosingRoomApp() {
     );
   }, [view]);
 
+  if (mounted && partnerMode) {
+    return <PartnerMode onExit={() => setPartnerMode(false)} dark={dark} onToggleTheme={() => setDark((value) => !value)} />;
+  }
+
   return (
     <main className="min-h-screen">
       <div className="grid-bg border-b border-[var(--line)]">
@@ -89,6 +95,9 @@ export function ClosingRoomApp() {
               <Link href="/deals" className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--panel-strong)]">
                 <BriefcaseBusiness size={16} /> Deals
               </Link>
+              <Button onClick={() => setPartnerMode(true)} title="Open Partner Mode">
+                <Presentation size={16} /> Partner Mode
+              </Button>
               <Button variant="secondary" onClick={() => setDark((value) => !value)} title="Toggle theme">
                 {dark ? <Sun size={16} /> : <Moon size={16} />} {dark ? "Light" : "Dark"}
               </Button>
