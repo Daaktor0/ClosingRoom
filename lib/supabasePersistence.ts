@@ -1,6 +1,6 @@
 "use client";
 
-import { createSeedDeal, seedNotes, seedTasks } from "@/lib/checklistSeed";
+import { createTemplateDeal, seedTasks } from "@/lib/checklistSeed";
 import type { DealStatus, PortfolioDeal } from "@/lib/dealPortfolio";
 import { getSupabaseClient } from "@/lib/supabaseClient";
 import type {
@@ -192,7 +192,7 @@ async function getCurrentUserAndOrganization() {
 
 async function createSeedDealInSupabase(organizationId: string, userId: string): Promise<DealRow> {
   const supabase = requireClient();
-  const seed = createSeedDeal();
+  const seed = createTemplateDeal();
   const { data: dealRow, error: dealError } = await supabase
     .from("deal")
     .insert({
@@ -241,7 +241,7 @@ async function ensureDealHasTasks(dealRow: DealRow, organizationId: string, user
   let deal = await loadDeal(dealRow);
 
   if (!deal.tasks.length) {
-    await insertSeedChildren(dealRow, organizationId, userId, createSeedDeal());
+    await insertSeedChildren(dealRow, organizationId, userId, createTemplateDeal());
     deal = await loadDeal(dealRow);
   }
 
@@ -330,7 +330,7 @@ export async function createDealNote(dealId: string, note: Omit<DealNote, "id" |
 export async function resetCurrentDeal(dealId: string): Promise<Deal> {
   const supabase = requireClient();
   const { organizationId } = await getCurrentUserAndOrganization();
-  const seed = createSeedDeal();
+  const seed = createTemplateDeal();
 
   const { data: dealRow, error: dealError } = await supabase
     .from("deal")
@@ -354,8 +354,7 @@ export async function resetCurrentDeal(dealId: string): Promise<Deal> {
       .then(({ error }) => failIf(error))
   ));
 
-  const deal = await loadDeal(dealRow as DealRow);
-  return { ...deal, notes: deal.notes.length ? deal.notes : seedNotes.map((note) => ({ ...note })) };
+  return loadDeal(dealRow as DealRow);
 }
 
 export async function loadDealById(dealId: string): Promise<Deal> {
@@ -390,7 +389,18 @@ export async function createDeal(input: {
     .single();
   failIf(error);
 
-  await insertSeedChildren(dealRow as DealRow, organizationId, user.id, createSeedDeal());
+  await insertSeedChildren(
+    dealRow as DealRow,
+    organizationId,
+    user.id,
+    createTemplateDeal({
+      id: dealRow.id,
+      name: input.name,
+      companyName: input.companyName,
+      investorName: input.investorName,
+      closingDateX: input.closingDateX
+    })
+  );
   return loadDeal(dealRow as DealRow);
 }
 

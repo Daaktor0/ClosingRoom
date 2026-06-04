@@ -743,6 +743,8 @@ export const seedDeal: Deal = {
   notes: seedNotes
 };
 
+type TemplateDealInput = Partial<Pick<Deal, "id" | "name" | "companyName" | "investorName" | "closingDateX" | "firmLabel">>;
+
 function addDays(date: Date, days: number): Date {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
@@ -762,6 +764,28 @@ function cloneTask(task: Task): Task {
     dependencies: task.dependencies.map((dependency) => ({ ...dependency })),
     evidence: { ...task.evidence },
     filing: task.filing ? { ...task.filing } : undefined
+  };
+}
+
+function cleanTemplateTask(task: Task): Task {
+  const cloned = cloneTask(task);
+  return {
+    ...cloned,
+    status: "Not Started",
+    blocker: false,
+    evidence: { ...cloned.evidence, satisfied: false },
+    documentStatus: "Not Started",
+    lastUpdated: now,
+    notes: ""
+  };
+}
+
+export function createTemplateDeal(input: TemplateDealInput = {}): Deal {
+  return {
+    ...seedDeal,
+    ...input,
+    tasks: seedTasks.map(cleanTemplateTask),
+    notes: []
   };
 }
 
