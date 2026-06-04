@@ -159,7 +159,7 @@ export function DealsHome() {
       <div className="mx-auto grid max-w-[1560px] gap-4 px-4 py-5 lg:px-6">
         {wizardOpen ? (
           <Card>
-            <SectionHeader eyebrow="New deal wizard" title="Instantiate from India Seed Financing template" />
+            <SectionHeader eyebrow="New deal" title="Create a closing" />
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <Field label="Deal name">
                 <input className={inputClass} value={newDealName} onChange={(event) => setNewDealName(event.target.value)} />
@@ -176,7 +176,6 @@ export function DealsHome() {
             </div>
             {createError ? <p className="mt-3 rounded-md border border-red-700/30 bg-red-700/10 p-2 text-sm text-[var(--danger)]">{createError}</p> : null}
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              <Badge>Template: India Seed Financing - Private Placement</Badge>
               <Button onClick={handleCreateDeal} disabled={creating || !newDealName.trim() || !newClosingDate}>
                 {creating ? "Creating..." : "Create deal"}
               </Button>
