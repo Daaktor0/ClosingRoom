@@ -783,7 +783,12 @@ function cleanTemplateTask(task: Task): Task {
 export function createTemplateDeal(input: TemplateDealInput = {}): Deal {
   return {
     ...seedDeal,
-    ...input,
+    id: input.id ?? seedDeal.id,
+    name: input.name ?? "New Closing",
+    companyName: input.companyName ?? "",
+    investorName: input.investorName ?? "",
+    closingDateX: input.closingDateX ?? "",
+    firmLabel: input.firmLabel ?? seedDeal.firmLabel,
     tasks: seedTasks.map(cleanTemplateTask),
     notes: []
   };

@@ -10,7 +10,6 @@ import { ClosingTable } from "@/components/checklist/ClosingTable";
 import { DealSettings } from "@/components/deals/DealSettings";
 import { DocumentsRoom } from "@/components/documents/DocumentsRoom";
 import { ExportPanel } from "@/components/ExportPanel";
-import { ImportChecklist } from "@/components/ImportChecklist";
 import { NotesPanel } from "@/components/NotesPanel";
 import { PartnerMode } from "@/components/partner/PartnerMode";
 import { TimelineView } from "@/components/timeline/TimelineView";
@@ -51,6 +50,7 @@ export function ClosingRoomApp() {
   const signOut = useDealStore((state) => state.signOut);
   const syncStatus = useDealStore((state) => state.syncStatus);
   const syncMessage = useDealStore((state) => state.syncMessage);
+  const partyLabel = [deal.companyName, deal.investorName].filter(Boolean).join(" - ");
 
   useEffect(() => {
     setMounted(true);
@@ -100,7 +100,6 @@ export function ClosingRoomApp() {
       <div className="grid gap-4">
         <NotesPanel />
         <ExportPanel />
-        <ImportChecklist />
       </div>
     );
   }, [briefModel, closingTableCommand, deal, setClosingDate, view]);
@@ -130,11 +129,11 @@ export function ClosingRoomApp() {
             <div>
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <Badge tone="accent">Indian fundraise control room</Badge>
-                <Badge>{deal.companyName}</Badge>
+                {deal.companyName ? <Badge>{deal.companyName}</Badge> : null}
               </div>
               <h1 className="text-3xl font-semibold tracking-normal md:text-4xl">{deal.name}</h1>
               <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[var(--muted)]">
-                {deal.companyName} &middot; {deal.investorName} &mdash; CPs, X-relative deadlines, evidence, dependencies, statutory filings and closing readiness.
+                {partyLabel ? `${partyLabel} - ` : "Complete deal setup to add parties. "}CPs, X-relative deadlines, evidence, dependencies, statutory filings and closing readiness.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
