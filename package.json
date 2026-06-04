@@ -4,12 +4,19 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/copyPdfFonts.mjs",
     "build": "next build",
+    "postbuild": "tsx scripts/verifyPdfMemoRender.tsx",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "copy-pdf-fonts": "node scripts/copyPdfFonts.mjs",
+    "verify-pdf-render": "tsx scripts/verifyPdfMemoRender.tsx"
   },
   "dependencies": {
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/roboto-mono": "^0.4.2",
+    "@expo-google-fonts/source-serif-4": "^0.4.1",
     "@react-pdf/renderer": "^4.5.1",
     "@supabase/supabase-js": "^2.106.2",
     "@types/node": "^22.15.29",
@@ -30,6 +37,7 @@
     "@tailwindcss/postcss": "^4.1.8",
     "eslint": "^9.28.0",
     "eslint-config-next": "^15.3.3",
-    "tailwindcss": "^4.1.8"
+    "tailwindcss": "^4.1.8",
+    "tsx": "^4.22.4"
   }
 }

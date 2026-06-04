@@ -1,7 +1,7 @@
 "use client";
 
 import { Archive, Link2 } from "lucide-react";
-import { Badge, Card, Field, SectionHeader, inputClass } from "@/components/ui";
+import { Badge, Card, Field, SectionHeader, TaskRef, inputClass } from "@/components/ui";
 import { documentStatuses } from "@/lib/constants";
 import { useDealStore } from "@/lib/store";
 import type { DocumentStatus } from "@/lib/types";
@@ -30,8 +30,8 @@ export function DocumentsRoom() {
                   <div key={task.id} className="rounded-md border border-[var(--line)] bg-[var(--panel)] p-3">
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-medium">{task.serialNumber} - {task.evidence.label}</p>
-                        <p className="mt-1 text-xs text-[var(--muted)]">{task.action}</p>
+                        <p className="text-sm font-medium"><TaskRef task={task} /></p>
+                        <p className="mt-1 text-xs text-[var(--muted)]">{task.evidence.label}</p>
                       </div>
                       {task.evidence.satisfied ? <Badge tone="success">Evidence satisfied</Badge> : <Badge tone={task.evidence.required ? "warning" : "neutral"}>Missing</Badge>}
                     </div>

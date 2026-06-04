@@ -2,7 +2,7 @@
 
 import { AlertTriangle, ChevronDown, ChevronRight, Search } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
-import { Badge, Button, Card, Field, SectionHeader, inputClass } from "@/components/ui";
+import { Badge, Button, Card, Field, SectionHeader, TaskRef, inputClass } from "@/components/ui";
 import { confidentialityReminder, documentStatuses, phases, responsibleParties, STATUS_NOTE_MAX_LENGTH, statutoryVerificationDisclaimer, taskStatuses } from "@/lib/constants";
 import { deadlineCountdownLabel, deadlineUrgencyTone, formatDate, getComputedDueDate, getComputedStatutoryDate, getDeadlineUrgency, isOverdue } from "@/lib/dateUtils";
 import { useDealStore } from "@/lib/store";
@@ -11,7 +11,7 @@ import type { DocumentStatus, Phase, ResponsibleParty, Task, TaskStatus } from "
 type SortKey = "serialNumber" | "phase" | "timeline" | "dueDate" | "status" | "owner";
 
 export function MasterChecklistTable() {
-  const { deal, updateTaskStatus, updateTaskEvidence, updateDocumentStatus, updateTaskNotes } = useDealStore();
+  const { deal, updateTaskStatus, updateTaskEvidence, updateDocumentStatus, updateTaskOwner, updateTaskNotes } = useDealStore();
   const [search, setSearch] = useState("");
   const [phase, setPhase] = useState<Phase | "All">("All");
   const [status, setStatus] = useState<TaskStatus | "All">("All");
@@ -20,6 +20,10 @@ export function MasterChecklistTable() {
   const [dueFilter, setDueFilter] = useState<"All" | "Overdue" | "Prior to X" | "X" | "Post-closing">("All");
   const [sortKey, setSortKey] = useState<SortKey>("serialNumber");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState<TaskStatus>("In Progress");
+  const [bulkDocumentStatus, setBulkDocumentStatus] = useState<DocumentStatus>("Under Review");
+  const [bulkOwner, setBulkOwner] = useState("");
 
   const filteredTasks = useMemo(() => {
     const normalized = search.trim().toLowerCase();
@@ -44,6 +48,35 @@ export function MasterChecklistTable() {
       })
       .sort((a, b) => compareTasks(a, b, sortKey, deal.closingDateX));
   }, [blockerOnly, deal.closingDateX, deal.tasks, dueFilter, party, phase, search, sortKey, status]);
+  const ownerOptions = useMemo(() => Array.from(new Set(deal.tasks.map((task) => task.owner).filter(Boolean))).sort(), [deal.tasks]);
+  const selectedCount = selectedIds.size;
+  const allVisibleSelected = filteredTasks.length > 0 && filteredTasks.every((task) => selectedIds.has(task.id));
+
+  function toggleSelected(taskId: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  }
+
+  function toggleAllVisible() {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (allVisibleSelected) {
+        for (const task of filteredTasks) next.delete(task.id);
+      } else {
+        for (const task of filteredTasks) next.add(task.id);
+      }
+      return next;
+    });
+  }
+
+  function applyBulk(action: (taskId: string) => void) {
+    for (const taskId of selectedIds) action(taskId);
+    setSelectedIds(new Set());
+  }
 
   return (
     <Card>
@@ -98,10 +131,45 @@ export function MasterChecklistTable() {
         Show blockers only
       </label>
 
+      <div className="mb-4 grid gap-3 rounded-md border border-[var(--line)] bg-[var(--panel-strong)]/40 p-3 lg:grid-cols-[auto_repeat(3,minmax(170px,1fr))] lg:items-end">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">Bulk actions</p>
+          <p className="mt-1 text-sm">{selectedCount} selected</p>
+        </div>
+        <Field label="Set status">
+          <div className="flex gap-2">
+            <select className={inputClass} value={bulkStatus} onChange={(event) => setBulkStatus(event.target.value as TaskStatus)}>
+              {taskStatuses.map((item) => <option key={item}>{item}</option>)}
+            </select>
+            <Button variant="secondary" disabled={!selectedCount} onClick={() => applyBulk((taskId) => updateTaskStatus(taskId, bulkStatus))}>Apply</Button>
+          </div>
+        </Field>
+        <Field label="Set owner">
+          <div className="flex gap-2">
+            <select className={inputClass} value={bulkOwner} onChange={(event) => setBulkOwner(event.target.value)}>
+              <option value="">Choose owner</option>
+              {ownerOptions.map((owner) => <option key={owner}>{owner}</option>)}
+            </select>
+            <Button variant="secondary" disabled={!selectedCount || !bulkOwner} onClick={() => applyBulk((taskId) => updateTaskOwner(taskId, bulkOwner))}>Apply</Button>
+          </div>
+        </Field>
+        <Field label="Set document">
+          <div className="flex gap-2">
+            <select className={inputClass} value={bulkDocumentStatus} onChange={(event) => setBulkDocumentStatus(event.target.value as DocumentStatus)}>
+              {documentStatuses.map((item) => <option key={item}>{item}</option>)}
+            </select>
+            <Button variant="secondary" disabled={!selectedCount} onClick={() => applyBulk((taskId) => updateDocumentStatus(taskId, bulkDocumentStatus))}>Apply</Button>
+          </div>
+        </Field>
+      </div>
+
       <div className="overflow-x-auto scrollbar-thin">
         <table className="w-full min-w-[1280px] border-collapse text-left text-sm">
           <thead className="border-y border-[var(--line)] bg-[var(--panel-strong)] text-xs uppercase tracking-[0.1em] text-[var(--muted)]">
             <tr>
+              <th className="px-3 py-3 font-semibold">
+                <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} aria-label="Select all visible tasks" />
+              </th>
               {["S. No.", "Phase", "Timeline", "Internal Due Date", "Statutory Limit", "Action", "Responsible Parties", "Status", "Evidence", "Risk", "Blocker", "Owner", "Last Updated"].map((header) => (
                 <th key={header} className="px-3 py-3 font-semibold">{header}</th>
               ))}
@@ -116,6 +184,9 @@ export function MasterChecklistTable() {
               return (
                 <Fragment key={task.id}>
                   <tr className="border-b border-[var(--line)] align-top hover:bg-[var(--panel-strong)]/60">
+                    <td className="px-3 py-3">
+                      <input type="checkbox" checked={selectedIds.has(task.id)} onChange={() => toggleSelected(task.id)} aria-label={`Select ${task.serialNumber}`} />
+                    </td>
                     <td className="px-3 py-3 font-semibold">
                       <button className="inline-flex items-center gap-1" onClick={() => setExpanded(open ? null : task.id)}>
                         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -138,7 +209,7 @@ export function MasterChecklistTable() {
                       )}
                     </td>
                     <td className="max-w-[360px] px-3 py-3 leading-relaxed">
-                      <p>{task.action}</p>
+                      <p><TaskRef task={task} full /></p>
                       {task.filing || task.statutoryDeadlineNote ? (
                         <span className="mt-2 inline-flex items-start gap-1.5 rounded-md border border-yellow-700/30 bg-yellow-700/10 px-2 py-1 text-xs leading-snug text-[var(--warning)]">
                           <AlertTriangle size={13} className="mt-0.5 shrink-0" />
@@ -165,7 +236,7 @@ export function MasterChecklistTable() {
                   </tr>
                   {open ? (
                     <tr className="border-b border-[var(--line)] bg-[var(--panel)]">
-                      <td colSpan={13} className="px-5 py-4">
+                      <td colSpan={14} className="px-5 py-4">
                         <div className="grid gap-4 lg:grid-cols-3">
                           <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">Evidence checklist</p>

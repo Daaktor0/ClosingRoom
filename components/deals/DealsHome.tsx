@@ -4,7 +4,7 @@ import { ArrowDownUp, CalendarClock, CheckCircle2, CircleAlert, Plus, ShieldAler
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Badge, Button, Card, Field, ProgressBar, SectionHeader, inputClass } from "@/components/ui";
+import { Badge, Button, Card, Field, ProgressBar, SectionHeader, TaskRef, inputClass } from "@/components/ui";
 import type { DealStatus, PortfolioDeal } from "@/lib/dealPortfolio";
 import { daysUntil, formatDate, getComputedDueDate, getComputedStatutoryDate } from "@/lib/dateUtils";
 import { getNextBestAction, getReadiness, isTaskComplete } from "@/lib/rules";
@@ -26,10 +26,10 @@ function daysToNextStatutoryDeadline(deal: PortfolioDeal): number | null {
   return next ? daysUntil(next, deal.closingDateX) : null;
 }
 
-function nextBlockingItem(deal: PortfolioDeal): string {
+function nextBlockingTask(deal: PortfolioDeal): Task | null {
   const readiness = getReadiness(deal);
   const nextBlocker = readiness.blockers[0] ?? getNextBestAction(deal);
-  return nextBlocker ? `${nextBlocker.serialNumber} ${nextBlocker.action}` : "No open blocker";
+  return nextBlocker ?? null;
 }
 
 function statusTone(status: DealStatus): "neutral" | "success" | "warning" {
@@ -229,6 +229,7 @@ export function DealsHome() {
                   {rows.map((deal) => {
                     const readiness = getReadiness(deal);
                     const statutoryDays = daysToNextStatutoryDeadline(deal);
+                    const blockingTask = nextBlockingTask(deal);
                     return (
                       <tr key={deal.id} className="border-b border-[var(--line)] align-top hover:bg-[var(--panel-strong)]/60">
                         <td className="px-4 py-4">
@@ -252,7 +253,9 @@ export function DealsHome() {
                             <ProgressBar value={readiness.score} />
                           </div>
                         </td>
-                        <td className="max-w-[360px] px-4 py-4 leading-relaxed">{nextBlockingItem(deal)}</td>
+                        <td className="max-w-[360px] px-4 py-4 leading-relaxed">
+                          {blockingTask ? <TaskRef task={blockingTask} /> : "No open blocker"}
+                        </td>
                         <td className="px-4 py-4">
                           <Badge tone={statutoryDays !== null && statutoryDays < 0 ? "danger" : statutoryDays !== null && statutoryDays <= 7 ? "warning" : "neutral"}>
                             {statutoryDays === null ? "No dated item" : statutoryDays < 0 ? `${Math.abs(statutoryDays)}d overdue` : statutoryDays === 0 ? "Due today" : `${statutoryDays}d`}

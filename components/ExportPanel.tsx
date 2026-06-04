@@ -9,13 +9,15 @@ import { useDealStore } from "@/lib/store";
 export function ExportPanel() {
   const { deal } = useDealStore();
   const [busy, setBusy] = useState<null | "pdf" | "excel">(null);
+  const [includeNotes, setIncludeNotes] = useState(false);
 
   async function handlePdf() {
     setBusy("pdf");
     try {
       const { downloadPdfReport } = await import("@/lib/pdfReport");
-      await downloadPdfReport(deal);
+      await downloadPdfReport(deal, { includeNotes });
     } finally {
+      setIncludeNotes(false);
       setBusy(null);
     }
   }
@@ -32,10 +34,10 @@ export function ExportPanel() {
 
   return (
     <Card>
-      <SectionHeader eyebrow="Export" title="Status Report Downloads" />
+      <SectionHeader eyebrow="Export" title="Closing Status Memo Downloads" />
       <div className="flex flex-wrap gap-3">
         <Button onClick={handlePdf} disabled={busy !== null}>
-          {busy === "pdf" ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />} PDF status report
+          {busy === "pdf" ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />} PDF status memo
         </Button>
         <Button onClick={handleExcel} disabled={busy !== null}>
           {busy === "excel" ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} />} Excel workbook
@@ -50,8 +52,23 @@ export function ExportPanel() {
           <Download size={16} /> JSON backup
         </Button>
       </div>
+      <label className="mt-4 flex max-w-xl items-start gap-3 rounded-md border border-[var(--line)] bg-[var(--panel)] p-3 text-sm">
+        <input
+          type="checkbox"
+          checked={includeNotes}
+          disabled={busy !== null}
+          onChange={(event) => setIncludeNotes(event.target.checked)}
+          className="mt-1 size-4 accent-[var(--accent)]"
+        />
+        <span>
+          <span className="block font-medium text-[var(--foreground)]">Include status notes (internal only)</span>
+          <span className="mt-1 block text-xs text-[var(--muted)]">
+            Off by default. Internal copies are marked on every PDF page and use a distinct filename.
+          </span>
+        </span>
+      </label>
       <p className="mt-3 text-sm text-[var(--muted)]">
-        The PDF is a partner-ready Closing Status Report; the Excel workbook has per-phase sheets, a deadlines sheet (internal vs statutory) and conditional formatting. All exports draw from status fields only - no confidential content.
+        The PDF memo defaults to external posture and omits status notes; the Excel workbook has per-phase sheets, a deadlines sheet (internal vs statutory) and conditional formatting. Notes are included only when the internal checkbox is selected for that export.
       </p>
     </Card>
   );

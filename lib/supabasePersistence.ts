@@ -288,13 +288,14 @@ export async function saveDealPatch(dealId: string, patch: Pick<Deal, "name" | "
   if (!data) throw new Error("Deal was not saved. Refresh and confirm this account still has access to the deal.");
 }
 
-export async function saveTaskPatch(dealId: string, taskId: string, patch: Partial<Pick<Task, "status" | "evidence" | "documentStatus" | "notes">>) {
+export async function saveTaskPatch(dealId: string, taskId: string, patch: Partial<Pick<Task, "status" | "evidence" | "documentStatus" | "notes" | "owner">>) {
   const supabase = requireClient();
   const rowPatch: Record<string, unknown> = {};
   if ("status" in patch) rowPatch.status = patch.status;
   if ("evidence" in patch) rowPatch.evidence = jsonValue(patch.evidence);
   if ("documentStatus" in patch) rowPatch.document_status = patch.documentStatus;
   if ("notes" in patch) rowPatch.notes = patch.notes;
+  if ("owner" in patch) rowPatch.owner_label = patch.owner;
   rowPatch.last_updated = new Date().toISOString();
 
   const { data, error } = await supabase

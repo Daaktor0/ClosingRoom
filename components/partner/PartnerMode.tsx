@@ -1,10 +1,10 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, FileText, Loader2, Moon, ShieldAlert, Sun } from "lucide-react";
+import { ArrowLeft, ArrowRight, FileText, Flag, Loader2, Lock, Moon, ShieldAlert, Sun } from "lucide-react";
 import { useState } from "react";
 import { CountdownTile } from "@/components/system/CountdownTile";
 import { ReadinessRing } from "@/components/system/ReadinessRing";
-import { Badge, Button, Card, ProgressBar } from "@/components/ui";
+import { Badge, Button, ProgressBar, TaskRef } from "@/components/ui";
 import { globalDisclaimer, phases } from "@/lib/constants";
 import { daysUntil, deadlineUrgencyTone, formatDate, formatDeadlinePair, getComputedDueDate, getComputedStatutoryDate, getDeadlineUrgency } from "@/lib/dateUtils";
 import { getCompletionPercent, getNextBestAction, getPhaseTasks, getReadiness, isTaskComplete } from "@/lib/rules";
@@ -66,12 +66,12 @@ export function PartnerMode({ onExit, dark, onToggleTheme }: { onExit: () => voi
 
   return (
     <main className="min-h-screen">
-      <div className="mx-auto max-w-5xl px-6 py-8 lg:py-12">
+      <div className="mx-auto max-w-6xl px-6 py-8 lg:py-12">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <Badge tone="accent">Partner view</Badge>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">{deal.name}</h1>
-            <p className="mt-2 text-lg text-[var(--muted)]">{deal.companyName} &middot; {deal.investorName}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">Closing brief</p>
+            <h1 className="font-display mt-3 text-5xl font-semibold leading-tight tracking-normal md:text-7xl">{deal.name}</h1>
+            <p className="mt-3 max-w-3xl text-lg leading-7 text-[var(--muted)]">{deal.companyName} &middot; {deal.investorName}</p>
           </div>
           <div className="flex gap-2">
             <Button variant="secondary" onClick={onToggleTheme} title="Toggle theme">
@@ -83,17 +83,17 @@ export function PartnerMode({ onExit, dark, onToggleTheme }: { onExit: () => voi
           </div>
         </div>
 
-        <div className="mt-10 grid gap-8 lg:grid-cols-[auto_1fr] lg:items-center">
-          <div className="flex justify-center lg:justify-start">
+        <div className="mt-12 grid gap-10 lg:grid-cols-[auto_1fr] lg:items-center">
+          <div className="flex justify-center rounded-md border border-[var(--line)] bg-[var(--panel)]/55 p-6 lg:justify-start">
             <ReadinessRing score={readiness.score} ready={readiness.ready} size={220} />
           </div>
-          <Card>
-            <p className="text-sm uppercase tracking-[0.18em] text-[var(--muted)]">Next best action</p>
+          <section className="rounded-md border border-[var(--line)] bg-[var(--panel)]/65 p-7 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">Next best action</p>
             {nextBestAction ? (
               <>
-                <h2 className="mt-2 flex items-start gap-3 text-2xl font-semibold leading-snug">
-                  <ArrowRight size={26} className="mt-1 shrink-0 text-[var(--accent)]" />
-                  <span>{nextBestAction.serialNumber}: {nextBestAction.action}</span>
+                <h2 className="font-display mt-3 flex items-start gap-4 text-3xl font-semibold leading-tight md:text-4xl">
+                  <ArrowRight size={30} className="mt-1 shrink-0 text-[var(--accent)]" />
+                  <TaskRef task={nextBestAction} full />
                 </h2>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Badge tone={nextBestAction.priority === "Critical" ? "danger" : "warning"}>{nextBestAction.priority}</Badge>
@@ -105,22 +105,22 @@ export function PartnerMode({ onExit, dark, onToggleTheme }: { onExit: () => voi
                 </div>
               </>
             ) : (
-              <h2 className="mt-2 text-2xl font-semibold">{readiness.ready ? "All clear — ready to close." : "No open action right now."}</h2>
+              <h2 className="font-display mt-3 text-3xl font-semibold">{readiness.ready ? "All clear - ready to close." : "No open action right now."}</h2>
             )}
-          </Card>
+          </section>
         </div>
 
-        <h2 className="mt-12 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">Top statutory deadlines</h2>
+        <SectionTitle className="mt-14" statutory>Top statutory deadlines</SectionTitle>
         {deal.closingDateX && countdowns.length ? (
           <div className="mt-4 grid gap-4 md:grid-cols-3">
             {countdowns.map(({ task, date, days }) => (
-              <CountdownTile
-                key={task.id}
-                label={task.filing?.form ?? task.serialNumber}
-                sublabel={task.action}
-                dateLabel={date ? formatDate(date) : undefined}
-                days={days}
-              />
+              <div key={task.id} className="rounded-md border bg-orange-900/10 p-4 text-[var(--statutory-hard-stop)]" style={{ borderColor: "color-mix(in srgb, var(--statutory-hard-stop) 38%, transparent)" }}>
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em]"><Lock size={14} /> Hard stop</span>
+                  <Flag size={15} />
+                </div>
+                <CountdownTile task={task} dateLabel={date ? formatDate(date) : undefined} days={days} />
+              </div>
             ))}
           </div>
         ) : (
@@ -129,13 +129,13 @@ export function PartnerMode({ onExit, dark, onToggleTheme }: { onExit: () => voi
           </div>
         )}
 
-        <h2 className="mt-12 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">Top risks</h2>
+        <SectionTitle className="mt-14">Top risks</SectionTitle>
         {risks.length ? (
           <div className="mt-4 grid gap-3">
             {risks.map((task) => (
-              <div key={task.id} className="flex items-start justify-between gap-4 rounded-lg border border-[var(--line)] p-4">
+              <div key={task.id} className="flex items-start justify-between gap-4 rounded-md border border-[var(--line)] bg-[var(--panel)]/55 p-4">
                 <div>
-                  <p className="text-base font-medium">{task.serialNumber}: {task.action}</p>
+                  <p className="text-base font-semibold"><TaskRef task={task} /></p>
                   <p className="mt-1 text-sm text-[var(--muted)]">{task.riskCategory} &middot; {task.owner}</p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
@@ -149,19 +149,19 @@ export function PartnerMode({ onExit, dark, onToggleTheme }: { onExit: () => voi
           <div className="mt-4 rounded-lg border border-dashed border-[var(--line)] p-6 text-sm text-[var(--muted)]">No open risks flagged.</div>
         )}
 
-        <h2 className="mt-12 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">Phase progress</h2>
+        <SectionTitle className="mt-14">Phase progress</SectionTitle>
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {phases.map((phase) => {
             const phaseTasks = getPhaseTasks(deal.tasks, phase);
             const done = getCompletionPercent(phaseTasks);
             const open = phaseTasks.filter((task) => !CLOSED_STATES.includes(task.status)).length;
             return (
-              <Card key={phase}>
-                <p className="text-sm font-semibold">{phase}</p>
-                <p className="mt-1 font-mono text-3xl font-semibold tabular-nums">{done}%</p>
+              <section key={phase} className="rounded-md border border-[var(--line)] bg-[var(--panel)]/55 p-5">
+                <p className="font-display text-lg font-semibold">{phase}</p>
+                <p className="font-measure mt-2 text-4xl font-semibold tabular-nums">{done}%</p>
                 <ProgressBar value={done} className="mt-3" />
                 <p className="mt-2 text-xs text-[var(--muted)]">{open} open of {phaseTasks.length}</p>
-              </Card>
+              </section>
             );
           })}
         </div>
@@ -177,5 +177,14 @@ export function PartnerMode({ onExit, dark, onToggleTheme }: { onExit: () => voi
         </p>
       </div>
     </main>
+  );
+}
+
+function SectionTitle({ children, className, statutory = false }: { children: React.ReactNode; className?: string; statutory?: boolean }) {
+  return (
+    <h2 className={`font-display flex items-center gap-2 text-2xl font-semibold ${className ?? ""}`}>
+      {statutory ? <Lock size={18} className="text-[var(--statutory-hard-stop)]" /> : null}
+      <span>{children}</span>
+    </h2>
   );
 }

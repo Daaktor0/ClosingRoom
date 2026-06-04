@@ -50,7 +50,7 @@ export function ReadinessRing({
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="font-mono text-4xl font-semibold tabular-nums tracking-tight" style={{ color }}>
+          <span className="font-measure text-4xl font-semibold tabular-nums" style={{ color }}>
             {clamped}
             <span className="text-xl">%</span>
           </span>

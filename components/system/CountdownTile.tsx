@@ -1,5 +1,7 @@
 "use client";
 
+import { TaskRef, type TaskRefTask } from "@/components/ui";
+
 function tone(days: number | null): { color: string; bg: string } {
   if (days === null) return { color: "var(--status-grey)", bg: "color-mix(in srgb, var(--status-grey) 10%, transparent)" };
   if (days <= 2) return { color: "var(--status-red)", bg: "color-mix(in srgb, var(--status-red) 12%, transparent)" };
@@ -16,11 +18,13 @@ function countdownText(days: number | null): string {
 
 export function CountdownTile({
   label,
+  task,
   sublabel,
   dateLabel,
   days
 }: {
-  label: string;
+  label?: string;
+  task?: TaskRefTask;
   sublabel?: string;
   dateLabel?: string;
   days: number | null;
@@ -29,8 +33,10 @@ export function CountdownTile({
   return (
     <div className="rounded-lg border p-4" style={{ borderColor: color, background: bg }}>
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-semibold" style={{ color }}>{label}</p>
-        <span className="font-mono text-2xl font-semibold tabular-nums leading-none" style={{ color }}>
+        <p className="text-sm font-semibold" style={{ color }}>
+          {task ? <TaskRef task={task} /> : label}
+        </p>
+        <span className="font-measure text-2xl font-semibold tabular-nums leading-none" style={{ color }}>
           {days === null ? "--" : days < 0 ? `-${Math.abs(days)}` : days}
         </span>
       </div>
