@@ -3,7 +3,8 @@
 > **The closing control room for transaction lawyers.** Closing Room tells a deal team *exactly what is happening on every deal, what is next, and what is at risk* — without ever holding a single line of confidential client material.
 
 **Product:** Closing Room (working name) · **Repo:** github.com/Daaktor0/ClosingRoom
-**Document status:** Pitch draft · **Date:** 2026-05-28 · **Owner:** Founder
+**Document status:** Pitch draft · **Date:** 2026-06-24 · **Owner:** Founder
+**Revision note:** Updated to reflect the 2026 UX / workflow / visual redesign — the information architecture collapsed to three primary destinations, decision-first task cards, inline term definitions, an elevated command palette, Comfortable/Compact density, a one-gesture "Present" mode, and a portfolio card grid. See §5, §7, and §8.1.
 **Flagship use case:** Indian private-placement / fundraise closings (Companies Act 2013 + FEMA)
 
 > **Reading note for reviewers:** Section 6 (Confidentiality) is the spine of the product and the core moat — read it first. Section 8 separates *what works today* from *what is on the roadmap* so nothing here oversells. Legal content (Section 9) is transaction-practice knowledge framed as "verify with counsel," not legal advice.
@@ -90,7 +91,7 @@ Boutique corporate/M&A law firms and the corporate teams of full-service firms; 
 3. **Personal by default, shared by intent.** A lawyer sees their deals and open items immediately; firm sharing is deliberate and role-gated.
 4. **Templates, not hard-code.** New deal types are content, not engineering.
 5. **Defensible.** Every status change is attributable and timestamped.
-6. **Taste is a feature.** Calm, dense-but-legible, fast; exports a partner can hand to a client.
+6. **Taste is a feature — and calm is the strategy.** Restraint *is* trust for a legal buyer: clutter reads as "prototype," composure reads as "final product." We show the next thing and hide depth behind intent (progressive disclosure), keep one hero per screen, demote chrome, and let the page breathe. Fewer simultaneous choices (Hick's Law), a small working set per surface (Miller's 7±2), and patterns users already know (Jakob's Law) make a dense legal product feel effortless. Exports stay polished enough to hand a client.
 7. **Boring, reliable tech.** A system of record: uptime and data integrity beat novelty.
 
 ---
@@ -113,11 +114,11 @@ This is not a setting; it is the architecture:
 
 ## 7. How it works
 
-1. **Start a deal from a template.** The flagship template is "India Seed Financing — Private Placement," a ~30-task model across four phases (Pre-Execution, Conditions Precedent, Closing Actions, Post-Closing Actions).
-2. **Set Closing Date "X."** Every deadline is computed relative to X (e.g., "Prior to X," "X+10," "X+30"), and statutory hard limits are tracked distinctly from internal/agreed targets.
-3. **Work the checklist.** Update each item's status, owner, evidence (satisfied + external link), and document status. Notes are status-only.
-4. **Let the engine think.** Closing Room continuously computes: the **next best action**, **dependency blocks**, **overdue/upcoming** items with urgency flags, **owner-wise pending** load, **phase progress**, and a **closing-readiness score + verdict** with a plain-English "why not ready" list.
-5. **Report in one click.** Generate a branded **PDF Closing Status Report** for the partner/client, or a formatted **Excel workbook** for working sessions — both confidential-safe.
+1. **Start a deal from a template.** Naming the matter is the only required step; the flagship template is "India Seed Financing — Private Placement," a ~30-task model across four phases (Pre-Execution, Conditions Precedent, Closing Actions, Post-Closing Actions).
+2. **Set Closing Date "X."** The first run lands on **The Brief** with one prompt — set X — because every deadline is computed relative to it (e.g., "Prior to X," "X+10," "X+30"), and statutory hard limits are tracked distinctly from internal/agreed targets.
+3. **Work the Closing Table.** Update each item from a decision-first card — owner, one-tap status advance, evidence (satisfied + external link), document status — with all legal detail one click deeper. Notes are status-only.
+4. **Let the engine think.** Closing Room continuously computes: the **next best action**, **dependency blocks**, **overdue/upcoming** items with urgency flags, **owner-wise pending** load, **phase progress**, and a **closing-readiness score + verdict** with a plain-English "why not ready" list — surfaced as the hero of The Brief.
+5. **Report in one click.** Generate a branded **PDF Closing Status Report** for the partner/client, or a formatted **Excel workbook** for working sessions — both confidential-safe — or flip into full-screen **Present** mode to walk the room through readiness live.
 
 ---
 
@@ -131,10 +132,15 @@ This is not a setting; it is the architecture:
 - **Next-best-action** recommendation: the single most important unblocked, highest-priority, soonest-due open item.
 - **Confidentiality model fully implemented:** document *register* with external links (no uploads), status-only length-capped notes, and a persistent global disclaimer.
 - **Real branded exports:** a partner-ready **PDF Closing Status Report** (cover + readiness verdict, executive summary/KPIs, readiness detail, upcoming deadlines with statutory flags, owner-wise pending, phase progress, post-closing tail, disclaimer page) and a formatted **Excel workbook** (Overview, one sheet per phase, a Deadlines sheet, an Owners sheet, with frozen headers, autofilter, and status-based conditional formatting). CSV / JSON / Markdown also available.
-- **Eight working views:** Dashboard, Checklist, Readiness, Timeline, Dependencies, Document Register, Risk heatmap, Notes & Export. Light/dark themes.
-- **Tasteful, fast UI** built on a modern stack (Next.js / React / TypeScript / Tailwind).
+- **Three-destination information architecture (2026 redesign):** the daily surface collapses to **The Brief** (*decide* — readiness ring, headline, the next best action, and three capped "instrument reads": blockers / statutory clock / critical path), **The Closing Table** (*do* — a decision-first **Run Sheet** by default, a dense **Grid** on demand, and **Dependencies / Risk / Document-register lenses** layered over the *same* list rather than separate tabs), and **Timeline** (*when*). Everything else lives behind intent — a **⌘K command palette** to jump, filter, set status or present, plus a right-side account menu (Settings, Export, Notes, theme, density). Down from ~7–11 visible destinations to **3**.
+- **Decision-first task cards (progressive disclosure):** each item shows only the decision — title, owner, one-tap status advance, and a single salient flag (Blocker › Overdue › Statutory › priority) — while every legal field (document status, dependencies, statutory basis + verification disclaimer, source / reviewer / filing) sits one click deeper under "Detail." Nothing legal is removed; completed work recedes to a quiet line. Card height roughly halved.
+- **Recognition over recall:** legal jargon (CP, CS, PAS-3, PAS-4/5, MGT-14, SH-7, FC-GPR…) is defined **inline** on hover where it first appears, replacing the old wall of glossary chips.
+- **Partner Mode ("Present"):** one full-screen "present to the room" surface — the polished peak moment for partner/client reviews.
+- **Comfortable / Compact density modes** (persisted per user) so the calm default suits associates while company-secretary and power users can opt into denser screens; light & dark themes tuned to a single-accent (teal) palette with a reserved color used *only* for statutory hard-stops (maximizing salience).
+- **Portfolio home:** a scannable **card grid** of deals, each surfacing readiness, the next blocker, and the next statutory deadline at a glance; frictionless deal creation (name only) and filters tucked behind one control.
+- **Tasteful, fast UI** on a modern stack (Next.js / React / TypeScript / Tailwind), composed around established UX psychology (Hick's Law, Miller's 7±2, progressive disclosure, Von Restorff salience, goal-gradient, Zeigarnik, Jakob's Law) so a dense legal product *feels* calm — which, for a legal buyer, reads as trustworthy and finished.
 
-> *Today's app is single-deal and stores data in the browser; the cloud/multi-deal/account layer below is the next build.*
+> *Today's app is single-deal and stores data in the browser; the cloud/multi-deal/account layer below is the next build. The portfolio home, accounts, and persistence layer are being built out alongside the redesigned single-deal experience.*
 
 ### 8.2 Near-term roadmap (v0–v1)
 
