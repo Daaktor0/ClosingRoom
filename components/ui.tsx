@@ -12,6 +12,7 @@ import {
   User
 } from "lucide-react";
 import { formatDate, getComputedDueDate, getComputedStatutoryDate } from "@/lib/dateUtils";
+import { glossary } from "@/lib/glossary";
 import type { Task, TaskStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -313,6 +314,32 @@ export function DeadlinePair({
         </div>
       ) : null}
     </div>
+  );
+}
+
+// Inline term definition (recognition over recall): a dotted-underline anchor
+// that reveals the glossary entry on hover, replacing the old chip wall. Define
+// a term where it first appears instead of forcing users to memorise jargon.
+export function Term({
+  name,
+  children,
+  className
+}: {
+  name: keyof typeof glossary;
+  children?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <Tooltip label={glossary[name]}>
+      <span
+        className={cn(
+          "cursor-help underline decoration-dotted decoration-[var(--muted)]/60 underline-offset-4",
+          className
+        )}
+      >
+        {children ?? name}
+      </span>
+    </Tooltip>
   );
 }
 

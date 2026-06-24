@@ -1,8 +1,8 @@
 "use client";
 
-import { CalendarClock, CheckCircle2, ChevronDown, ChevronRight, FileCheck2, Flag, GitBranch, MoreHorizontal, Scale, TriangleAlert } from "lucide-react";
+import { CalendarClock, CheckCircle2, ChevronDown, ChevronRight, FileCheck2, Flag, MoreHorizontal, TriangleAlert } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
-import { Badge, Button, DeadlinePair, Field, StatusPill, TaskRef, inputClass } from "@/components/ui";
+import { Badge, Field, StatusPill, TaskRef, inputClass } from "@/components/ui";
 import { confidentialityReminder, documentStatuses, phases, STATUS_NOTE_MAX_LENGTH, statutoryVerificationDisclaimer, taskStatuses } from "@/lib/constants";
 import { deadlineCountdownLabel, formatDate, getComputedDueDate, isOverdue } from "@/lib/dateUtils";
 import { getCriticalPathTasks, getDependencyWarnings, isTaskComplete } from "@/lib/rules";
@@ -124,99 +124,87 @@ function RunSheetCard({
   const overdue = isOverdue(task, closingDateX);
   const countdown = deadlineCountdownLabel(task, closingDateX);
   const complete = isTaskComplete(task);
+  const dueDate = getComputedDueDate(task, closingDateX);
   useDismissable(menuRef, onDismissMenu, menuOpen);
+
+  const moreMenu = (
+    <div ref={menuRef} className="relative">
+      <button
+        type="button"
+        onClick={onToggleMenu}
+        className="inline-flex min-h-7 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--panel)] px-2 text-[var(--muted)] transition hover:bg-[var(--panel-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+        aria-label="More status options"
+        aria-expanded={menuOpen}
+      >
+        <MoreHorizontal size={15} />
+      </button>
+      {menuOpen ? <SideStateMenu current={task.status} onSelect={onStatusChange} /> : null}
+    </div>
+  );
+
+  // Closed loops recede: a completed task collapses to a single quiet line.
+  if (complete) {
+    return (
+      <article className="flex items-center gap-2 rounded-md border border-[var(--line)] bg-[var(--panel)]/40 px-3 py-2 text-sm">
+        <CheckCircle2 size={15} className="shrink-0 text-[var(--success)]" aria-hidden />
+        <span className="min-w-0 flex-1 truncate text-[var(--muted)]"><TaskRef task={task} showForm={false} /></span>
+        <StatusPill status={task.status} />
+        {moreMenu}
+      </article>
+    );
+  }
 
   return (
     <article
       className={cn(
-        "relative flex min-h-[23rem] flex-col rounded-md border border-[var(--line)] bg-[var(--background)] p-4 shadow-sm",
+        "relative flex flex-col rounded-md border border-[var(--line)] bg-[var(--background)] p-3.5 shadow-sm",
         isCritical ? "border-l-4 border-l-[var(--foreground)]" : "border-l-4 border-l-transparent",
-        task.blocker && !complete ? "bg-red-700/5" : ""
+        task.blocker ? "bg-red-700/5" : ""
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold leading-snug"><TaskRef task={task} /></p>
-          <p className="mt-1 text-xs text-[var(--muted)]">{task.owner}</p>
-        </div>
-        <div className="flex shrink-0 items-start gap-1.5">
+      <div className="flex items-start justify-between gap-2">
+        <p className="min-w-0 text-sm font-semibold leading-snug"><TaskRef task={task} /></p>
+        <div className="shrink-0">{salientFlag(task, overdue)}</div>
+      </div>
+
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <p className="min-w-0 truncate text-xs text-[var(--muted)]">{task.owner}</p>
+        <div className="flex shrink-0 items-center gap-1.5">
           <StatusPill status={task.status} onAdvance={onStatusChange} />
-          <div ref={menuRef} className="relative">
-            <button
-              type="button"
-              onClick={onToggleMenu}
-              className="inline-flex min-h-7 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--panel)] px-2 text-[var(--muted)] transition hover:bg-[var(--panel-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-              aria-label="More status options"
-              aria-expanded={menuOpen}
-            >
-              <MoreHorizontal size={15} />
-            </button>
-            {menuOpen ? <SideStateMenu current={task.status} onSelect={onStatusChange} /> : null}
-          </div>
+          {moreMenu}
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {task.blocker && !complete ? <Badge tone="danger"><TriangleAlert size={12} />Blocker</Badge> : null}
-        {isCritical ? <Badge><Scale size={12} />Critical path</Badge> : null}
-        {dependencyWarnings.length ? <Badge tone="warning"><GitBranch size={12} />Sequencing</Badge> : null}
-        {overdue ? <Badge tone="danger"><CalendarClock size={12} />Overdue</Badge> : null}
-        {task.filing ? <Badge tone="statutory">{task.filing.form}</Badge> : null}
-      </div>
-
-      <DeadlinePair task={task} closingDateX={closingDateX} compact className="mt-4" />
-      {countdown ? <p className="mt-2 font-measure text-xs text-[var(--muted)]">{formatDate(getComputedDueDate(task, closingDateX))} - {countdown}</p> : null}
-
-      <div className="mt-4 grid gap-2 text-xs text-[var(--muted)]">
-        <p>Document: <span className="font-medium text-[var(--foreground)]">{task.documentStatus}</span></p>
-        <p>Reviewer: <span className="font-medium text-[var(--foreground)]">{task.reviewer}</span></p>
-      </div>
-
-      {task.dependencies.length ? (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {task.dependencies.map((dependency) => {
-            const prerequisite = taskById.get(dependency.taskId);
-            const broken = dependencyWarnings.some((warning) => warning.prerequisiteTaskId === dependency.taskId);
-            return (
-              <span
-                key={`${dependency.taskId}->${task.id}`}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[0.68rem] font-medium",
-                  broken
-                    ? "border-red-700/30 bg-red-700/10 text-[var(--danger)]"
-                    : "border-[var(--line)] bg-[var(--panel-strong)] text-[var(--muted)]"
-                )}
-              >
-                <Flag size={11} aria-hidden />
-                blocked by {prerequisite?.serialNumber ?? dependency.label}
-              </span>
-            );
-          })}
-        </div>
+      {dueDate || countdown ? (
+        <p className="mt-2 font-measure text-xs text-[var(--muted)]">
+          Due {formatDate(dueDate)}{countdown ? ` · ${countdown}` : ""}
+        </p>
       ) : null}
 
-      <div className="mt-auto pt-4">
+      <div className="mt-3 flex items-center gap-2 border-t border-[var(--line)] pt-3">
         <button
           type="button"
           onClick={onToggleEvidence}
           className={cn(
-            "flex w-full items-start gap-2 rounded-md border p-3 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
+            "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
             task.evidence.satisfied
               ? "border-green-700/30 bg-green-700/10 text-[var(--success)]"
               : "border-yellow-700/30 bg-yellow-700/10 text-[var(--warning)]"
           )}
+          title={task.evidence.label}
         >
-          <FileCheck2 size={16} className="mt-0.5 shrink-0" aria-hidden />
-          <span>
-            <span className="block font-semibold">{task.evidence.satisfied ? "Evidence satisfied" : "Evidence missing"}</span>
-            <span className="mt-1 block text-xs opacity-85">{task.evidence.label}</span>
-          </span>
+          <FileCheck2 size={14} aria-hidden />
+          {task.evidence.satisfied ? "Evidence" : "Evidence missing"}
         </button>
-
-        <Button className="mt-3 w-full" variant="secondary" onClick={onToggleExpanded}>
-          {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-          {expanded ? "Hide detail" : "Show detail"}
-        </Button>
+        <button
+          type="button"
+          onClick={onToggleExpanded}
+          className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-[var(--muted)] transition hover:text-[var(--foreground)]"
+          aria-expanded={expanded}
+        >
+          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          Detail
+        </button>
       </div>
 
       {expanded ? (
@@ -245,7 +233,30 @@ function RunSheetCard({
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">Dependencies</p>
-            <p className="mt-1 text-sm">{task.dependencies.length ? task.dependencies.map((item) => item.label).join("; ") : "No dependencies recorded."}</p>
+            {task.dependencies.length ? (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {task.dependencies.map((dependency) => {
+                  const prerequisite = taskById.get(dependency.taskId);
+                  const broken = dependencyWarnings.some((warning) => warning.prerequisiteTaskId === dependency.taskId);
+                  return (
+                    <span
+                      key={`${dependency.taskId}->${task.id}`}
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[0.68rem] font-medium",
+                        broken
+                          ? "border-red-700/30 bg-red-700/10 text-[var(--danger)]"
+                          : "border-[var(--line)] bg-[var(--panel-strong)] text-[var(--muted)]"
+                      )}
+                    >
+                      <Flag size={11} aria-hidden />
+                      blocked by {prerequisite?.serialNumber ?? dependency.label}
+                    </span>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="mt-1 text-sm">No dependencies recorded.</p>
+            )}
           </div>
 
           <div>
@@ -282,6 +293,18 @@ function RunSheetCard({
       ) : null}
     </article>
   );
+}
+
+// At most one badge per card (Miller's Law): the worst-active flag wins, in
+// precedence Blocker > Overdue > Statutory, falling back to high priority.
+function salientFlag(task: Task, overdue: boolean): React.ReactNode {
+  if (task.blocker) return <Badge tone="danger"><TriangleAlert size={12} />Blocker</Badge>;
+  if (overdue) return <Badge tone="danger"><CalendarClock size={12} />Overdue</Badge>;
+  if (task.filing) return <Badge tone="statutory">{task.filing.form}</Badge>;
+  if (task.priority === "Critical" || task.priority === "High") {
+    return <Badge tone={task.priority === "Critical" ? "danger" : "warning"}>{task.priority}</Badge>;
+  }
+  return null;
 }
 
 function SideStateMenu({ current, onSelect }: { current: TaskStatus; onSelect: (status: TaskStatus) => void }) {

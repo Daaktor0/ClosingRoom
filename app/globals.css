@@ -72,6 +72,14 @@
 html {
   background: var(--background);
   color: var(--foreground);
+  /* Density modes (§8): Comfortable is the calmer default; Compact restores
+     today's denser fit for power users / CS-heavy work. Scaling the root font
+     size carries through the rem-based type and spacing ramp in one switch. */
+  font-size: 16px;
+}
+
+html[data-density="compact"] {
+  font-size: 14.5px;
 }
 
 body {

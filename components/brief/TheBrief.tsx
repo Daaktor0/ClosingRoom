@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, ArrowRight, CalendarClock, ListChecks, Scale, Settings, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ArrowRight, CalendarClock, ListChecks, NotebookPen, Scale, Settings, ShieldCheck } from "lucide-react";
 import { ReadinessRing } from "@/components/system/ReadinessRing";
 import { Badge, BriefHeadline, Button, Card, DeadlinePair, Field, StatusPill, TaskRef, inputClass } from "@/components/ui";
 import { toInputDate } from "@/lib/dateUtils";
@@ -13,13 +13,15 @@ export function TheBrief({
   onSetClosingDate,
   onOpenClosingPack,
   onOpenChecklist,
-  onOpenTimeline
+  onOpenTimeline,
+  onOpenNotes
 }: {
   model: BriefModel;
   onSetClosingDate: (value: string) => void;
   onOpenClosingPack: () => void;
   onOpenChecklist: () => void;
   onOpenTimeline: () => void;
+  onOpenNotes?: () => void;
 }) {
   if (!model.hasClosingDate) {
     return <BriefOnboarding model={model} onSetClosingDate={onSetClosingDate} />;
@@ -57,6 +59,7 @@ export function TheBrief({
         closingDateX={model.closingDateX}
         ready={model.readiness.ready}
         onOpenChecklist={onOpenChecklist}
+        onOpenNotes={onOpenNotes}
       />
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -113,12 +116,14 @@ function NextBestActionCard({
   task,
   closingDateX,
   ready,
-  onOpenChecklist
+  onOpenChecklist,
+  onOpenNotes
 }: {
   task: Task | null;
   closingDateX: string;
   ready: boolean;
   onOpenChecklist: () => void;
+  onOpenNotes?: () => void;
 }) {
   return (
     <Card>
@@ -146,9 +151,16 @@ function NextBestActionCard({
             </h2>
           )}
         </div>
-        <Button variant="secondary" onClick={onOpenChecklist}>
-          <ListChecks size={16} /> Open Closing Table
-        </Button>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {onOpenNotes ? (
+            <Button variant="ghost" onClick={onOpenNotes}>
+              <NotebookPen size={16} /> Notes
+            </Button>
+          ) : null}
+          <Button variant="secondary" onClick={onOpenChecklist}>
+            <ListChecks size={16} /> Open Closing Table
+          </Button>
+        </div>
       </div>
     </Card>
   );

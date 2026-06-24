@@ -9,13 +9,14 @@ import { isTaskComplete } from "@/lib/rules";
 import type { Deal, Phase, TaskStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export type CommandDestination = "Brief" | "Closing Table" | "Closing Pack" | "Timeline" | "Documents" | "Notes & Export" | "Deal Settings";
+export type CommandDestination = "Brief" | "Closing Table" | "Closing Pack" | "Timeline" | "Deal Settings" | "Export";
 export type ClosingTableCommand =
   | { id: string; kind: "show-blockers" }
   | { id: string; kind: "show-overdue" }
   | { id: string; kind: "show-phase"; phase: Phase }
   | { id: string; kind: "show-dependencies" }
-  | { id: string; kind: "show-risk" };
+  | { id: string; kind: "show-risk" }
+  | { id: string; kind: "show-documents" };
 
 interface CommandPaletteProps {
   open: boolean;
@@ -24,6 +25,7 @@ interface CommandPaletteProps {
   onNavigate: (destination: CommandDestination) => void;
   onClosingTableCommand: (command: ClosingTableCommand) => void;
   onPresent: () => void;
+  onOpenNotes: () => void;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => void;
 }
 
@@ -43,6 +45,7 @@ export function CommandPalette({
   onNavigate,
   onClosingTableCommand,
   onPresent,
+  onOpenNotes,
   onUpdateTaskStatus
 }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
@@ -85,10 +88,10 @@ export function CommandPalette({
       {
         id: "open-documents",
         label: "Open Documents",
-        detail: "Document room",
-        keywords: "documents dms evidence",
+        detail: "Document register lens over the Closing Table",
+        keywords: "documents dms evidence register lens",
         icon: <FileArchive size={16} />,
-        run: () => onNavigate("Documents")
+        run: () => onClosingTableCommand({ id: `show-documents-${Date.now()}`, kind: "show-documents" })
       },
       {
         id: "open-risk",
@@ -99,12 +102,20 @@ export function CommandPalette({
         run: () => onClosingTableCommand({ id: `show-risk-${Date.now()}`, kind: "show-risk" })
       },
       {
-        id: "open-notes-export",
-        label: "Open Notes and Export",
-        detail: "Notes, memo exports, import",
-        keywords: "notes export import",
+        id: "open-notes",
+        label: "Open Notes",
+        detail: "Deal-level open questions and waivers",
+        keywords: "notes follow-up waiver open question slide over",
         icon: <BookOpenText size={16} />,
-        run: () => onNavigate("Notes & Export")
+        run: onOpenNotes
+      },
+      {
+        id: "open-export",
+        label: "Export status memo",
+        detail: "PDF, Excel, CSV, Markdown, JSON",
+        keywords: "export pdf excel csv memo download",
+        icon: <BookOpenText size={16} />,
+        run: () => onNavigate("Export")
       },
       {
         id: "set-closing-date",
@@ -182,7 +193,7 @@ export function CommandPalette({
       }));
 
     return [...navigation, ...filterCommands, ...taskCommands];
-  }, [deal.tasks, onClosingTableCommand, onNavigate, onPresent, onUpdateTaskStatus]);
+  }, [deal.tasks, onClosingTableCommand, onNavigate, onOpenNotes, onPresent, onUpdateTaskStatus]);
 
   const filtered = useMemo(() => {
     const normalized = query.trim();

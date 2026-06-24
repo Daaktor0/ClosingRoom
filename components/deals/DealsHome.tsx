@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownUp, CalendarClock, CheckCircle2, CircleAlert, Plus, ShieldAlert } from "lucide-react";
+import { ArrowRight, CalendarClock, CheckCircle2, CircleAlert, Plus, ShieldAlert, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -46,6 +46,7 @@ export function DealsHome() {
   const [statusFilter, setStatusFilter] = useState<DealStatus | "all">("active");
   const [ownerFilter, setOwnerFilter] = useState<OwnerFilter>("me");
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
   const [newDealName, setNewDealName] = useState("");
@@ -110,14 +111,15 @@ export function DealsHome() {
                 <Badge tone="accent">Portfolio home</Badge>
                 <Badge>{deals === null ? "Loading" : `${deals.length} deals`}</Badge>
               </div>
-              <h1 className="text-3xl font-semibold tracking-normal md:text-4xl">Deals</h1>
-              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[var(--muted)]">
-                Active closings, readiness, next blockers and statutory deadline pressure in one screen.
-              </p>
+              <h1 className="font-display text-3xl font-semibold tracking-normal md:text-4xl">Deals</h1>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant={filtersOpen ? "primary" : "secondary"} onClick={() => setFiltersOpen((value) => !value)}>
+                <SlidersHorizontal size={15} /> Filters
+              </Button>
+              <Badge tone="accent" className="min-h-9">{rows.length} shown</Badge>
               <Link href="/demo" className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--panel-strong)]">
-                <ShieldAlert size={16} /> Open demo
+                <ShieldAlert size={16} /> Demo
               </Link>
               <Button onClick={() => setWizardOpen((value) => !value)}>
                 <Plus size={16} /> New deal
@@ -125,34 +127,31 @@ export function DealsHome() {
             </div>
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
-            <Field label="Status">
-              <select className={inputClass} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as DealStatus | "all")}>
-                <option value="active">Active</option>
-                <option value="closed">Closed</option>
-                <option value="on-hold">On hold</option>
-                <option value="all">All</option>
-              </select>
-            </Field>
-            <Field label="Owner">
-              <select className={inputClass} value={ownerFilter} onChange={(event) => setOwnerFilter(event.target.value as OwnerFilter)}>
-                <option value="me">Me</option>
-                <option value="all">All</option>
-              </select>
-            </Field>
-            <Field label="Sort">
-              <select className={inputClass} value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>
-                <option value="closingDate">Closing date</option>
-                <option value="readiness">Readiness</option>
-                <option value="dealName">Deal name</option>
-              </select>
-            </Field>
-            <div className="flex items-end">
-              <Badge tone="accent" className="min-h-9">
-                <ArrowDownUp size={14} /> {rows.length} shown
-              </Badge>
+          {filtersOpen ? (
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field label="Status">
+                <select className={inputClass} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as DealStatus | "all")}>
+                  <option value="active">Active</option>
+                  <option value="closed">Closed</option>
+                  <option value="on-hold">On hold</option>
+                  <option value="all">All</option>
+                </select>
+              </Field>
+              <Field label="Owner">
+                <select className={inputClass} value={ownerFilter} onChange={(event) => setOwnerFilter(event.target.value as OwnerFilter)}>
+                  <option value="me">Me</option>
+                  <option value="all">All</option>
+                </select>
+              </Field>
+              <Field label="Sort">
+                <select className={inputClass} value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>
+                  <option value="closingDate">Closing date</option>
+                  <option value="readiness">Readiness</option>
+                  <option value="dealName">Deal name</option>
+                </select>
+              </Field>
             </div>
-          </div>
+          ) : null}
         </div>
       </div>
 
@@ -160,20 +159,7 @@ export function DealsHome() {
         {wizardOpen ? (
           <Card>
             <SectionHeader eyebrow="New deal setup" title="Create a closing" />
-            <div className="mb-4 grid gap-3 text-sm text-[var(--muted)] md:grid-cols-3">
-              <div className="rounded-md border border-[var(--line)] bg-[var(--panel)] p-3">
-                <p className="font-semibold text-[var(--foreground)]">1. Name the matter</p>
-                <p className="mt-1">Start with the deal name. Parties and dates can be completed later.</p>
-              </div>
-              <div className="rounded-md border border-[var(--line)] bg-[var(--panel)] p-3">
-                <p className="font-semibold text-[var(--foreground)]">2. Add parties</p>
-                <p className="mt-1">Company and investor names are optional during setup.</p>
-              </div>
-              <div className="rounded-md border border-[var(--line)] bg-[var(--panel)] p-3">
-                <p className="font-semibold text-[var(--foreground)]">3. Set Closing Date X</p>
-                <p className="mt-1">Add it now or set it from the Brief when the date is known.</p>
-              </div>
-            </div>
+            <p className="mb-4 text-sm text-[var(--muted)]">Only a deal name is required — add parties and Closing Date X later from the Brief.</p>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <Field label="Deal name">
                 <input className={inputClass} value={newDealName} onChange={(event) => setNewDealName(event.target.value)} placeholder="e.g. Series B Closing" />
@@ -228,66 +214,63 @@ export function DealsHome() {
             </div>
           </Card>
         ) : (
-          <Card className="p-0">
-            <div className="overflow-x-auto scrollbar-thin">
-              <table className="w-full min-w-[1180px] border-collapse text-left text-sm">
-                <thead className="border-y border-[var(--line)] bg-[var(--panel-strong)] text-xs uppercase tracking-[0.1em] text-[var(--muted)]">
-                  <tr>
-                    {["Deal", "Status", "Closing Date", "Readiness", "Next Blocking Item", "Next Statutory Deadline", "Lead Partner", "Open"].map((header) => (
-                      <th key={header} className="px-4 py-3 font-semibold">{header}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((deal) => {
-                    const readiness = getReadiness(deal);
-                    const statutoryDays = daysToNextStatutoryDeadline(deal);
-                    const blockingTask = nextBlockingTask(deal);
-                    return (
-                      <tr key={deal.id} className="border-b border-[var(--line)] align-top hover:bg-[var(--panel-strong)]/60">
-                        <td className="px-4 py-4">
-                          <p className="font-semibold">{deal.name}</p>
-                          <p className="mt-1 text-xs text-[var(--muted)]">
-                            {[deal.companyName, deal.investorName].filter(Boolean).join(" - ") || "Deal setup incomplete"}
-                          </p>
-                        </td>
-                        <td className="px-4 py-4"><Badge tone={statusTone(deal.status)}>{deal.status}</Badge></td>
-                        <td className="px-4 py-4">
-                          <span className="inline-flex items-center gap-2">
-                            <CalendarClock size={15} className="text-[var(--accent)]" />
-                            {formatDate(getComputedDueDate({ timeline: "X" }, deal.closingDateX))}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="w-36">
-                            <div className="mb-2 flex items-center justify-between gap-2">
-                              <span className="font-semibold">{readiness.score}%</span>
-                              {readiness.ready ? <CheckCircle2 size={15} className="text-[var(--success)]" /> : <CircleAlert size={15} className="text-[var(--danger)]" />}
-                            </div>
-                            <ProgressBar value={readiness.score} />
-                          </div>
-                        </td>
-                        <td className="max-w-[360px] px-4 py-4 leading-relaxed">
-                          {blockingTask ? <TaskRef task={blockingTask} /> : "No open blocker"}
-                        </td>
-                        <td className="px-4 py-4">
-                          <Badge tone={statutoryDays !== null && statutoryDays < 0 ? "danger" : statutoryDays !== null && statutoryDays <= 7 ? "warning" : "neutral"}>
-                            {statutoryDays === null ? "No dated item" : statutoryDays < 0 ? `${Math.abs(statutoryDays)}d overdue` : statutoryDays === 0 ? "Due today" : `${statutoryDays}d`}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-4">{deal.leadPartner}</td>
-                        <td className="px-4 py-4">
-                          <Link href={`/deals/${deal.id}`} className="inline-flex min-h-9 items-center justify-center rounded-md border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--panel-strong)]">
-                            Open
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {rows.map((deal) => {
+              const readiness = getReadiness(deal);
+              const statutoryDays = daysToNextStatutoryDeadline(deal);
+              const blockingTask = nextBlockingTask(deal);
+              return (
+                <Link
+                  key={deal.id}
+                  href={`/deals/${deal.id}`}
+                  className="card group flex flex-col gap-4 p-4 transition hover:border-[var(--accent)]"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="min-w-0 font-display text-lg font-semibold leading-snug">{deal.name}</p>
+                      <Badge tone={statusTone(deal.status)}>{deal.status}</Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      {[deal.companyName, deal.investorName].filter(Boolean).join(" · ") || "Deal setup incomplete"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <div className="mb-1.5 flex items-center justify-between gap-2 text-sm">
+                      <span className="inline-flex items-center gap-1.5 font-semibold">
+                        {readiness.ready ? <CheckCircle2 size={15} className="text-[var(--success)]" /> : <CircleAlert size={15} className="text-[var(--danger)]" />}
+                        {readiness.score}% ready
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 text-xs text-[var(--muted)]">
+                        <CalendarClock size={14} className="text-[var(--accent)]" />
+                        {formatDate(getComputedDueDate({ timeline: "X" }, deal.closingDateX))}
+                      </span>
+                    </div>
+                    <ProgressBar value={readiness.score} />
+                  </div>
+
+                  <div className="grid gap-3 border-t border-[var(--line)] pt-3 text-sm sm:grid-cols-2">
+                    <div className="min-w-0">
+                      <p className="text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">Next blocker</p>
+                      <p className="mt-1 leading-snug">{blockingTask ? <TaskRef task={blockingTask} /> : "No open blocker"}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">Next statutory</p>
+                      <div className="mt-1">
+                        <Badge tone={statutoryDays !== null && statutoryDays < 0 ? "danger" : statutoryDays !== null && statutoryDays <= 7 ? "warning" : "neutral"}>
+                          {statutoryDays === null ? "No dated item" : statutoryDays < 0 ? `${Math.abs(statutoryDays)}d overdue` : statutoryDays === 0 ? "Due today" : `${statutoryDays}d`}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  <span className="mt-auto inline-flex items-center gap-1 text-sm font-medium text-[var(--accent)]">
+                    Open deal <ArrowRight size={15} className="transition group-hover:translate-x-0.5" />
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
         )}
       </div>
     </main>
