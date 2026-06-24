@@ -65,9 +65,17 @@ export function getReadiness(deal: Deal): ReadinessResult {
     ...getDependencyWarnings(tasks).map((warning) => warning.label)
   ];
 
-  const totalReadinessChecks = closingPrerequisites.length + requiredIds.length;
+  // Denominator must be a deduplicated set of task ids, consistent with the
+  // numerator. closingPrerequisites and requiredIds overlap; summing their
+  // lengths while counting failures as a unique set leaves a phantom baseline
+  // score (e.g. a brand-new deal with nothing done would read ~33%).
+  const readinessCheckIds = new Set<string>([
+    ...closingPrerequisites.map((task) => task.id),
+    ...requiredIds.filter((id) => tasks.some((task) => task.id === id))
+  ]);
+  const totalReadinessChecks = readinessCheckIds.size;
   const failedChecks = new Set([...mandatoryIncomplete, ...criticalFailures, ...missingEvidence, ...missingAgreedForm].map((task) => task.id)).size;
-  const score = Math.max(0, percent(totalReadinessChecks - failedChecks, totalReadinessChecks));
+  const score = totalReadinessChecks === 0 ? 0 : Math.max(0, percent(totalReadinessChecks - failedChecks, totalReadinessChecks));
 
   return {
     ready: failedChecks === 0 && blockers.length === 0,
