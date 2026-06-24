@@ -6,6 +6,8 @@ out/
 .env
 .env.local
 npm-debug.log*
+.dev-*.log
+.dev-*.err.log
 .claude/
 data/
 
