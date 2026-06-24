@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "copy-pdf-fonts": "node scripts/copyPdfFonts.mjs",
-    "verify-pdf-render": "tsx scripts/verifyPdfMemoRender.tsx"
+    "verify-pdf-render": "tsx scripts/verifyPdfMemoRender.tsx",
+    "generate-template-seed": "tsx scripts/generateTemplateSeed.ts"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",

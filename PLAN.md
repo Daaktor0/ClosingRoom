@@ -28,6 +28,7 @@ The project **moved off the planned Neon + Clerk + Drizzle + server-actions stac
 - **Auth**: `components/AuthGate.tsx` with sign-up + sign-in + resend-confirmation; auto-provisions org/owner on first login.
 - **Multi-deal home + detail**: `app/deals` (Supabase-backed `listDeals`/`createDeal`) and `app/deals/[id]` route; clean new-deal onboarding that instantiates a task snapshot.
 - **Section 10 legal content baked in** (`lib/checklistSeed.ts`): PAS-3 15-day statutory hard limit + "funds blocked until filed" note, Registered Valuer report for preferential allotment, MGT-14/SH-7 30-day clock, FC-GPR via FIRMS within 30 days + EMF + LSF, DIR-12 — with the `Filing` substructure (`statutoryDays`/`statutoryTrigger`/`statutoryNote`) and a statutory-vs-internal deadline distinction in the engine.
+- **Seed → DB template migration** (2026-06-24): `scripts/generateTemplateSeed.ts` (`npm run generate-template-seed`) emits `db/seed-template.sql` — a global seed template (`organization_id IS NULL`, `is_seed`) of `template` + `template_task` + `template_dependency` rows derived from the TS seed. `lib/supabasePersistence.ts` now instantiates new deals from the DB template (linking `deal.template_id` + `deal_task.template_task_id`) with a **safe fallback to the in-code TS seed** on any error/empty, so it works whether or not the seed SQL has been applied. *(To activate the DB path: run `db/seed-template.sql` once in the Supabase SQL editor — clients can't write a null-org template under RLS.)*
 - **Rules engine + 8 views** (Dashboard, Checklist, Readiness, Timeline, Dependencies, Documents, Risk, Notes & Export), next-best-action, amber/red countdowns.
 - **Exports**: PDF Closing Status Report (`@react-pdf/renderer`, `lib/pdfReport.tsx`) and styled Excel workbook (ExcelJS, `lib/excelReport.ts`), code-split/lazy-loaded. Self-hosted PDF fonts via `scripts/copyPdfFonts.mjs` + a `postbuild` render check.
 - **Confidentiality spine**: DocumentsRoom is a metadata-only register (no uploads), notes length-capped, persistent disclaimer.
@@ -41,14 +42,14 @@ The project **moved off the planned Neon + Clerk + Drizzle + server-actions stac
 
 ### Partial 🟡
 
-- **Seed lives in TypeScript, not the DB template tables.** `createDeal` snapshots tasks from the hardcoded `checklistSeed` into `deal_task` rows. The `template`/`template_task` tables exist in the schema but are **unused** — the Seed → Template v1 DB migration is not done.
+- **Dependencies are not persisted per-deal.** `deal_dependency` exists, but the read path recovers dependencies from the TS seed by `source_task_id`. Persisting + reading `deal_dependency` is a deliberate separate ticket (switching reads now would silently drop deps on existing deals). The new `seed-template.sql` does seed `template_dependency` for a complete template artifact.
 - **Enums** mirror `lib/types.ts` exactly but are **not** Zod-validated at the persistence boundary.
 - **Legal-content changelog** (`legal-content-changelog.md`) is now an **itemized review packet** — L1–L9 statutory points mapped to their seed tasks + sources, with a structured sign-off block — but the **human reviewer sign-off is still genuinely pending** (cannot be self-certified); not yet surfaced in-app.
 - **Firm branding** columns exist on `organization`; no admin/branding upload UI.
 
 ### Pending ⬜ (highest-leverage next)
 
-1. **Apply `db/schema.sql` to the live Supabase project** (run in SQL editor) — nothing persists in prod until this is done.
+1. **Run `db/seed-template.sql`** in the Supabase SQL editor to activate the DB-template path (the dev project in `.env.local` already has the full `db/schema.sql` applied — verified via the REST API; confirm/apply schema + seed on the production project too).
 2. **Reminders**: no Resend/Inngest/Cron — statutory-deadline sweep + digests unbuilt (all needed fields already in the model).
 3. **Audit/activity feed UI** (table + triggers exist; no UI).
 4. **Portfolio view** for partners (no `/portfolio` route).
@@ -356,10 +357,10 @@ Four phases. Each ships something usable. Tickets are sequenced; check them off 
 *Goal: the current single-deal experience, but logged-in and saved to a real DB.*
 *Status legend: ✅ done · 🟡 partial · ⬜ pending. (Stack realized on Supabase, not Neon/Clerk/Drizzle — see Section 0a.)*
 
-1. ✅ **Provision infra** — Supabase project (Auth + Postgres) wired via `.env.local`. *(Caveat: `db/schema.sql` not yet applied to the live project.)*
+1. ✅ **Provision infra** — Supabase project (Auth + Postgres) wired via `.env.local`; `db/schema.sql` is applied on the dev project (verified). *(Production project status unconfirmed.)*
 2. 🟡 **Schema** — all 10 tables defined in `db/schema.sql` with RLS + triggers. **No Drizzle ORM** (raw SQL + client SDK instead of migrations).
 3. 🟡 **Single source of truth for enums** — DB enums mirror `lib/types.ts` exactly, but **Zod schemas not added** at the boundary.
-4. ⬜ **Seed -> Template v1 migration** — **not done**; deals snapshot from the hardcoded `checklistSeed`, the `template`/`template_task` tables are unused.
+4. ✅ **Seed -> Template v1 migration** — `db/seed-template.sql` (generated from the TS seed) populates `template`/`template_task`/`template_dependency`; `createDeal` instantiates from the DB template with a TS-seed fallback. *(Run the seed SQL once to switch from the fallback to the DB path.)*
 5. ✅ **Auth wiring** — Supabase Auth; trigger auto-creates `organization` + `owner` `membership` on first login; org context enforced via RLS.
 6. ✅ **Persistence layer** — `lib/supabasePersistence.ts` provides `createDeal`, status/evidence/doc/notes updates, org-scoped via RLS; `audit_entry` written by **DB triggers** (not server actions). *(Not Zod-validated.)*
 7. 🟡 **Rules engine** — lives in `lib/rules.ts`, reused client-side; **not** moved to a server `lib/engine/` (no server runtime needed under the client-SDK model).
@@ -373,7 +374,7 @@ Four phases. Each ships something usable. Tickets are sequenced; check them off 
 ### v1 - Multi-deal + real exports (the "tracker" people rely on)
 1. 🟡 **Deal list / home** — `app/deals` (Supabase-backed) with create + list; advanced search/filter/sort/archive not all wired.
 2. ⬜ **"My open items"** cross-deal personal queue — not built.
-3. ✅ **New-deal onboarding** — set company/investor/X → instantiate task snapshot. *(Snapshots from the TS seed, not a DB template — see v0.4.)*
+3. ✅ **New-deal onboarding** — set company/investor/X → instantiate task snapshot from the DB seed template (TS-seed fallback). See v0.4.
 4. ✅ **Section 10 legal updates applied** — in `lib/checklistSeed.ts`: PAS-3 15-day hard limit, registered-valuer valuation, MGT-14/SH-7 30-day clock, FC-GPR/FIRMS+EMF+LSF, DIR-12; `Filing.statutoryDays` + statutory-vs-internal distinction in the engine.
 5. ✅ **Next-best-action banner** + amber/red smart deadline flags with statutory hard limits highlighted.
 6. ✅ **Excel export (ExcelJS)** — `lib/excelReport.ts`.
@@ -436,10 +437,10 @@ Four phases. Each ships something usable. Tickets are sequenced; check them off 
 
 > Updated 2026-06-24 — the original three steps (stack forks, provision Neon/Clerk, apply legal updates) are **done** (Supabase chosen, infra wired, Section 10 updates baked into the seed). Current priorities:
 
-1. **Apply `db/schema.sql` to the live Supabase project** (SQL editor) — unblocks prod persistence.
+1. **Run `db/seed-template.sql`** (SQL editor) to activate the DB-template path; confirm schema + seed are applied on the production project.
 2. **Open a PR** for `codex/tracker-v1-scaffold` → `main`, review the schema line-by-line, then merge; drop the "localStorage MVP" badge and rename the app title to "Closing Room".
 3. **Obtain the legal-content reviewer sign-off** — the review packet is prepared (`legal-content-changelog.md` Section 2–3); a qualified practicing lawyer / CS must verify L1–L9 and complete the Section 3 sign-off. This gates charging anyone and cannot be self-certified.
 4. **Build the reminder job** (statutory-deadline sweep + digest; decide Vercel Cron vs Inngest).
-5. **Then**: Seed → DB-template migration (unlocks more templates), audit/activity feed UI, portfolio view, "My open items".
+5. **Then**: persist + read `deal_dependency` (separate ticket), audit/activity feed UI, portfolio view, "My open items". *(Seed → DB-template migration is done — adding more templates is now content, not code.)*
 
 > Reminder baked into the product and this plan: **this tracker records deal *status* only - never confidential, privileged, or client-identifying material - and nothing in it is legal advice.**

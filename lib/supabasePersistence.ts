@@ -64,6 +64,36 @@ type DealNoteRow = {
   created_at: string;
 };
 
+type TemplateTaskRow = {
+  id: string;
+  source_task_id: string;
+  serial_number: string;
+  phase: string;
+  timeline: string;
+  action: string;
+  parties: unknown;
+  comments: string;
+  priority: string;
+  evidence: unknown;
+  risk_category: string;
+  owner_label: string;
+  reviewer_label: string;
+  source_reference: string;
+  document_category: string;
+  filing: unknown;
+  statutory_deadline_note: string | null;
+  agreed_form_required: boolean;
+  mandatory_for_closing: boolean;
+};
+
+type TemplateSource = {
+  templateId: string;
+  tasks: Task[];
+  templateTaskIdBySourceId: Map<string, string>;
+};
+
+const SEED_TEMPLATE_NAME = "India Seed Financing - Private Placement";
+
 const seedByTaskId = new Map(seedTasks.map((task) => [task.id, task]));
 
 function requireClient() {
@@ -82,10 +112,11 @@ function jsonValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
 }
 
-function toTaskRow(task: Task, dealId: string, organizationId: string) {
+function toTaskRow(task: Task, dealId: string, organizationId: string, templateTaskId?: string | null) {
   return {
     organization_id: organizationId,
     deal_id: dealId,
+    template_task_id: templateTaskId ?? null,
     source_task_id: task.id,
     serial_number: task.serialNumber,
     phase: task.phase,
@@ -169,6 +200,99 @@ function fromDealRows(dealRow: DealRow, taskRows: DealTaskRow[], noteRows: DealN
   };
 }
 
+function templateTaskToTask(row: TemplateTaskRow): Task {
+  const seed = seedByTaskId.get(row.source_task_id);
+  const evidence = row.evidence && typeof row.evidence === "object" ? row.evidence as Evidence : seed?.evidence ?? { required: false, satisfied: false, label: "" };
+  const parties = Array.isArray(row.parties) ? row.parties as ResponsibleParty[] : seed?.parties ?? [];
+  const filing = row.filing && typeof row.filing === "object" ? row.filing as Filing : undefined;
+
+  return {
+    id: row.source_task_id,
+    serialNumber: row.serial_number,
+    phase: row.phase as Phase,
+    timeline: row.timeline as TimelineCode,
+    customOffsetDays: undefined,
+    action: row.action,
+    parties,
+    comments: row.comments,
+    status: "Not Started",
+    priority: row.priority as Priority,
+    blocker: false,
+    evidence: { ...evidence, satisfied: false },
+    riskCategory: row.risk_category as RiskCategory,
+    // Dependencies are still recovered from the TS seed by source_task_id; the
+    // read path is intentionally unchanged (deal_dependency is a separate ticket).
+    dependencies: seed?.dependencies.map((dependency) => ({ ...dependency })) ?? [],
+    owner: row.owner_label,
+    reviewer: row.reviewer_label,
+    lastUpdated: new Date().toISOString(),
+    notes: "",
+    sourceReference: row.source_reference,
+    documentCategory: row.document_category as DocumentCategory,
+    documentStatus: "Not Started",
+    filing,
+    statutoryDeadlineNote: row.statutory_deadline_note ?? undefined,
+    agreedFormRequired: row.agreed_form_required,
+    mandatoryForClosing: row.mandatory_for_closing
+  };
+}
+
+/**
+ * Reads the global seed template (organization_id IS NULL) and its tasks so new
+ * deals instantiate from the DB template tables. Returns null on any error
+ * (e.g. tables missing on an older database) OR when the template is unseeded,
+ * so every caller can fall back to the in-code TS seed and keep working.
+ */
+async function resolveTemplateSource(): Promise<TemplateSource | null> {
+  try {
+    const supabase = requireClient();
+    const { data: templateRows, error: templateError } = await supabase
+      .from("template")
+      .select("id, version")
+      .is("organization_id", null)
+      .eq("name", SEED_TEMPLATE_NAME)
+      .order("version", { ascending: false })
+      .limit(1);
+    if (templateError || !templateRows?.length) return null;
+
+    const templateId = templateRows[0].id as string;
+    const { data: taskRows, error: taskError } = await supabase
+      .from("template_task")
+      .select("*")
+      .eq("template_id", templateId);
+    if (taskError || !taskRows?.length) return null;
+
+    const rows = taskRows as TemplateTaskRow[];
+    const tasks = rows
+      .map(templateTaskToTask)
+      .sort((a, b) => a.serialNumber.localeCompare(b.serialNumber, "en", { numeric: true }));
+    const templateTaskIdBySourceId = new Map(rows.map((row) => [row.source_task_id, row.id]));
+    return { templateId, tasks, templateTaskIdBySourceId };
+  } catch {
+    return null;
+  }
+}
+
+type SeedDealBuild = {
+  deal: Deal;
+  templateId: string | null;
+  templateTaskIdBySourceId: Map<string, string>;
+};
+
+/** Builds the deal to seed, preferring the DB template and falling back to the TS seed. */
+async function buildSeedDeal(input?: Parameters<typeof createTemplateDeal>[0]): Promise<SeedDealBuild> {
+  const base = createTemplateDeal(input);
+  const source = await resolveTemplateSource();
+  if (!source) {
+    return { deal: base, templateId: null, templateTaskIdBySourceId: new Map() };
+  }
+  return {
+    deal: { ...base, tasks: source.tasks },
+    templateId: source.templateId,
+    templateTaskIdBySourceId: source.templateTaskIdBySourceId
+  };
+}
+
 async function getCurrentUserAndOrganization() {
   const supabase = requireClient();
   const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -192,11 +316,12 @@ async function getCurrentUserAndOrganization() {
 
 async function createSeedDealInSupabase(organizationId: string, userId: string): Promise<DealRow> {
   const supabase = requireClient();
-  const seed = createTemplateDeal();
+  const { deal: seed, templateId, templateTaskIdBySourceId } = await buildSeedDeal();
   const { data: dealRow, error: dealError } = await supabase
     .from("deal")
     .insert({
       organization_id: organizationId,
+      template_id: templateId,
       name: seed.name,
       company_name: seed.companyName,
       investor_name: seed.investorName,
@@ -208,11 +333,17 @@ async function createSeedDealInSupabase(organizationId: string, userId: string):
     .single();
   failIf(dealError);
 
-  await insertSeedChildren(dealRow as DealRow, organizationId, userId, seed);
+  await insertSeedChildren(dealRow as DealRow, organizationId, userId, seed, templateTaskIdBySourceId);
   return dealRow as DealRow;
 }
 
-async function insertSeedChildren(dealRow: DealRow, organizationId: string, userId: string, seed: Deal) {
+async function insertSeedChildren(
+  dealRow: DealRow,
+  organizationId: string,
+  userId: string,
+  seed: Deal,
+  templateTaskIdBySourceId: Map<string, string> = new Map()
+) {
   const supabase = requireClient();
   // Callers only seed a deal that has zero tasks (createDeal on a fresh row,
   // ensureDealHasTasks behind a !tasks.length guard), so a plain insert is
@@ -220,7 +351,7 @@ async function insertSeedChildren(dealRow: DealRow, organizationId: string, user
   // missing on already-provisioned databases.
   const { error: tasksError } = await supabase
     .from("deal_task")
-    .insert(seed.tasks.map((task) => toTaskRow(task, dealRow.id, organizationId)));
+    .insert(seed.tasks.map((task) => toTaskRow(task, dealRow.id, organizationId, templateTaskIdBySourceId.get(task.id))));
   failIf(tasksError);
 
   if (seed.notes.length) {
@@ -241,11 +372,23 @@ async function ensureDealHasTasks(dealRow: DealRow, organizationId: string, user
   let deal = await loadDeal(dealRow);
 
   if (!deal.tasks.length) {
-    await insertSeedChildren(dealRow, organizationId, userId, createTemplateDeal());
+    const { deal: seed, templateId, templateTaskIdBySourceId } = await buildSeedDeal();
+    await insertSeedChildren(dealRow, organizationId, userId, seed, templateTaskIdBySourceId);
+    if (templateId) {
+      // Best-effort: link the deal to the template it was seeded from.
+      await supabaseUpdateDealTemplate(dealRow.id, templateId);
+    }
     deal = await loadDeal(dealRow);
   }
 
   return deal;
+}
+
+async function supabaseUpdateDealTemplate(dealId: string, templateId: string) {
+  const supabase = requireClient();
+  const { error } = await supabase.from("deal").update({ template_id: templateId }).eq("id", dealId);
+  // Non-fatal: tasks already seeded; the link is a convenience only.
+  if (error) console.warn("Could not link deal to template:", error.message);
 }
 
 async function loadDeal(dealRow: DealRow): Promise<Deal> {
@@ -330,11 +473,12 @@ export async function createDealNote(dealId: string, note: Omit<DealNote, "id" |
 export async function resetCurrentDeal(dealId: string): Promise<Deal> {
   const supabase = requireClient();
   const { organizationId } = await getCurrentUserAndOrganization();
-  const seed = createTemplateDeal();
+  const { deal: seed, templateId, templateTaskIdBySourceId } = await buildSeedDeal();
 
   const { data: dealRow, error: dealError } = await supabase
     .from("deal")
     .update({
+      template_id: templateId,
       name: seed.name,
       company_name: seed.companyName,
       investor_name: seed.investorName,
@@ -348,7 +492,7 @@ export async function resetCurrentDeal(dealId: string): Promise<Deal> {
   await Promise.all(seed.tasks.map((task) =>
     supabase
       .from("deal_task")
-      .update(toTaskRow(task, dealId, organizationId))
+      .update(toTaskRow(task, dealId, organizationId, templateTaskIdBySourceId.get(task.id)))
       .eq("deal_id", dealId)
       .eq("source_task_id", task.id)
       .then(({ error }) => failIf(error))
@@ -373,10 +517,17 @@ export async function createDeal(input: {
 }): Promise<Deal> {
   const supabase = requireClient();
   const { user, organizationId } = await getCurrentUserAndOrganization();
+  const { deal: seed, templateId, templateTaskIdBySourceId } = await buildSeedDeal({
+    name: input.name,
+    companyName: input.companyName,
+    investorName: input.investorName,
+    closingDateX: input.closingDateX
+  });
   const { data: dealRow, error } = await supabase
     .from("deal")
     .insert({
       organization_id: organizationId,
+      template_id: templateId,
       name: input.name,
       company_name: input.companyName,
       investor_name: input.investorName,
@@ -389,18 +540,7 @@ export async function createDeal(input: {
     .single();
   failIf(error);
 
-  await insertSeedChildren(
-    dealRow as DealRow,
-    organizationId,
-    user.id,
-    createTemplateDeal({
-      id: dealRow.id,
-      name: input.name,
-      companyName: input.companyName,
-      investorName: input.investorName,
-      closingDateX: input.closingDateX
-    })
-  );
+  await insertSeedChildren(dealRow as DealRow, organizationId, user.id, seed, templateTaskIdBySourceId);
   return loadDeal(dealRow as DealRow);
 }
 
