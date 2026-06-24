@@ -2,8 +2,60 @@
 
 > **Vision:** The destination where every transaction lawyer records and watches the progress of each deal - smart, personal, beautiful, and trustworthy. A closing control room that tells the lawyer *exactly what is happening to each deal, what is next, and what is at risk* - without ever holding confidential client material.
 
-**Document status:** Draft for review - **Date:** 2026-05-28
+**Document status:** Draft for review - **Original date:** 2026-05-28 - **Progress update:** 2026-06-24
 **Scope:** Turn the current single-deal localStorage MVP into a multi-tenant, account-based SaaS with a robust database, polished UX, and branded PDF + Excel exports.
+
+---
+
+## 0a. Implementation status (as of 2026-06-24)
+
+> This section was added to record what has actually been built since the plan was written. The original plan below is preserved as the spec; the **Recommendation** rows and roadmap tickets are annotated with ✅ done / 🟡 partial / ⬜ pending where reality has moved.
+>
+> Branch: `codex/tracker-v1-scaffold` (pushed to GitHub; not yet merged to `main`). Production still serves the older localStorage build until this branch ships.
+
+### Stack pivot (supersedes Section 6.1 recommendation)
+
+The project **moved off the planned Neon + Clerk + Drizzle + server-actions stack onto Supabase** (Auth + Postgres + RLS in one bundle). Consequences:
+
+- **Data access** = client **Supabase SDK + Row-Level Security**, not server actions + ORM. RLS gives DB-enforced tenant isolation, which suits the confidentiality spine.
+- **Audit + org-provisioning** = **Postgres triggers** (auto-write `audit_entry`; auto-create `organization` + owner `membership` on `auth.users` insert), not service-layer transactions.
+- **No Drizzle, no Clerk, no Neon, no Zod layer** are installed. Wherever the plan below says Clerk/Neon/Drizzle/server-actions, read "Supabase + RLS + triggers + client SDK."
+
+### Done ✅
+
+- **Supabase-native schema** (`db/schema.sql`): all 10 tables, enums (incl. `cs_user` role), `organization_id` on every row, RLS via an `is_org_member()` helper, append-only `audit_entry` guard, `deal.updated_at` trigger, auto-org-provisioning trigger, firm-branding columns on `organization`.
+- **Cloud persistence**: `lib/store.ts` rewired off localStorage onto `lib/supabasePersistence.ts` (client Supabase calls).
+- **Auth**: `components/AuthGate.tsx` with sign-up + sign-in + resend-confirmation; auto-provisions org/owner on first login.
+- **Multi-deal home + detail**: `app/deals` (Supabase-backed `listDeals`/`createDeal`) and `app/deals/[id]` route; clean new-deal onboarding that instantiates a task snapshot.
+- **Section 10 legal content baked in** (`lib/checklistSeed.ts`): PAS-3 15-day statutory hard limit + "funds blocked until filed" note, Registered Valuer report for preferential allotment, MGT-14/SH-7 30-day clock, FC-GPR via FIRMS within 30 days + EMF + LSF, DIR-12 — with the `Filing` substructure (`statutoryDays`/`statutoryTrigger`/`statutoryNote`) and a statutory-vs-internal deadline distinction in the engine.
+- **Rules engine + 8 views** (Dashboard, Checklist, Readiness, Timeline, Dependencies, Documents, Risk, Notes & Export), next-best-action, amber/red countdowns.
+- **Exports**: PDF Closing Status Report (`@react-pdf/renderer`, `lib/pdfReport.tsx`) and styled Excel workbook (ExcelJS, `lib/excelReport.ts`), code-split/lazy-loaded. Self-hosted PDF fonts via `scripts/copyPdfFonts.mjs` + a `postbuild` render check.
+- **Confidentiality spine**: DocumentsRoom is a metadata-only register (no uploads), notes length-capped, persistent disclaimer.
+- **Security artifacts**: `docs/data-security-brief.md`, `docs/dpdp-readiness-checklist.md` (both flagged pending counsel/IT review).
+
+### Beyond-plan additions (built, not in the original plan)
+
+- **Partner Mode** screen-share view (`components/partner/PartnerMode.tsx`).
+- **Public no-login demo / local mode** (`app/demo`).
+- **Command palette** (`components/CommandPalette.tsx`).
+
+### Partial 🟡
+
+- **Seed lives in TypeScript, not the DB template tables.** `createDeal` snapshots tasks from the hardcoded `checklistSeed` into `deal_task` rows. The `template`/`template_task` tables exist in the schema but are **unused** — the Seed → Template v1 DB migration is not done.
+- **Enums** mirror `lib/types.ts` exactly but are **not** Zod-validated at the persistence boundary.
+- **Legal-content changelog** (`legal-content-changelog.md`) is now an **itemized review packet** — L1–L9 statutory points mapped to their seed tasks + sources, with a structured sign-off block — but the **human reviewer sign-off is still genuinely pending** (cannot be self-certified); not yet surfaced in-app.
+- **Firm branding** columns exist on `organization`; no admin/branding upload UI.
+
+### Pending ⬜ (highest-leverage next)
+
+1. **Apply `db/schema.sql` to the live Supabase project** (run in SQL editor) — nothing persists in prod until this is done.
+2. **Reminders**: no Resend/Inngest/Cron — statutory-deadline sweep + digests unbuilt (all needed fields already in the model).
+3. **Audit/activity feed UI** (table + triggers exist; no UI).
+4. **Portfolio view** for partners (no `/portfolio` route).
+5. **"My open items"** cross-deal personal queue.
+6. **Roles/sharing UI, comments/@mentions** (roles enforced in RLS; no UI).
+7. **Email subscription / email log tables**, **Zod validation layer**, **automated tests** (only the postbuild PDF render check exists).
+8. **Merge the branch to `main` / drop the "localStorage MVP" badge + rename title** from "Fundraise Closing Tracker" to "Closing Room".
 
 ---
 
@@ -102,6 +154,9 @@ Postgres (multi-tenant, row-scoped by org) via ORM
 ```
 
 ### 6.1 Stack decisions
+
+> ⚠️ **Superseded — see Section 0a.** The build pivoted to **Supabase** (Auth + Postgres + RLS). The Neon + Clerk + Drizzle + server-actions recommendation below was not taken; data access is the client Supabase SDK + RLS, and audit/provisioning are Postgres triggers.
+
 
 | Concern | Recommendation | Why | Alternatives |
 |---|---|---|---|
@@ -299,54 +354,57 @@ Four phases. Each ships something usable. Tickets are sequenced; check them off 
 
 ### v0 - Foundation: accounts + cloud data (replace localStorage)
 *Goal: the current single-deal experience, but logged-in and saved to a real DB.*
+*Status legend: ✅ done · 🟡 partial · ⬜ pending. (Stack realized on Supabase, not Neon/Clerk/Drizzle — see Section 0a.)*
 
-1. **Provision infra:** create Vercel project; add Neon Postgres (Marketplace); add Clerk (Marketplace); pull env vars (`vercel env pull`). *(Alternative: Supabase.)*
-2. **Add ORM + schema:** install Drizzle; define `organization`, `membership`, `template`, `template_task`, `template_dependency`, `deal`, `deal_task`, `deal_dependency`, `deal_note`, `audit_entry`; first migration.
-3. **Single source of truth for enums:** move `lib/types.ts` enums into Zod schemas + DB enums; generate TS types from them.
-4. **Seed -> Template v1 migration script:** convert `seedTasks`/`seedNotes` into `template_task` rows ("India Seed Financing - Private Placement", v1).
-5. **Auth wiring:** Clerk middleware; on first login auto-create an `organization` + `owner` membership; org/role available in every server action.
-6. **Service layer + server actions:** `createDeal(fromTemplate)`, `updateTaskStatus`, `updateEvidence`, `updateDocStatus`, `updateNotes`, `addNote` - each Zod-validated, org-scoped, and writing an `audit_entry`.
-7. **Port the rules engine** to `lib/engine/` (server-usable, pure functions). Reuse on client for optimistic UI.
-8. **Rewire `lib/store.ts`:** Zustand keeps UI state only; domain data comes from server (server actions + SWR/React Query or RSC). Remove localStorage persistence of deal data.
-9. **Confidentiality basics:** onboarding acknowledgment, persistent disclaimer banner, "status-only" copy on note inputs, length caps.
-10. **Reframe Documents Room** to a metadata + external-link register (no uploads).
-11. **Verification:** create deal -> update statuses -> reload/sign out/in -> data persists; readiness matches old client logic; audit rows written. (Run the app and click through.)
+1. ✅ **Provision infra** — Supabase project (Auth + Postgres) wired via `.env.local`. *(Caveat: `db/schema.sql` not yet applied to the live project.)*
+2. 🟡 **Schema** — all 10 tables defined in `db/schema.sql` with RLS + triggers. **No Drizzle ORM** (raw SQL + client SDK instead of migrations).
+3. 🟡 **Single source of truth for enums** — DB enums mirror `lib/types.ts` exactly, but **Zod schemas not added** at the boundary.
+4. ⬜ **Seed -> Template v1 migration** — **not done**; deals snapshot from the hardcoded `checklistSeed`, the `template`/`template_task` tables are unused.
+5. ✅ **Auth wiring** — Supabase Auth; trigger auto-creates `organization` + `owner` `membership` on first login; org context enforced via RLS.
+6. ✅ **Persistence layer** — `lib/supabasePersistence.ts` provides `createDeal`, status/evidence/doc/notes updates, org-scoped via RLS; `audit_entry` written by **DB triggers** (not server actions). *(Not Zod-validated.)*
+7. 🟡 **Rules engine** — lives in `lib/rules.ts`, reused client-side; **not** moved to a server `lib/engine/` (no server runtime needed under the client-SDK model).
+8. ✅ **Rewire `lib/store.ts`** — localStorage persistence removed; domain data comes from Supabase.
+9. ✅ **Confidentiality basics** — persistent disclaimer, status-only copy, length caps; AuthGate gate.
+10. ✅ **Reframe Documents Room** — metadata + external-link register, no uploads.
+11. 🟡 **Verification** — works in dev (create → update → reload persists; audit rows written). Not yet validated against the live prod project (schema unapplied).
 
-**Exit criteria:** a logged-in lawyer creates a deal from Template v1, updates it, and the data survives across sessions/devices.
+**Exit criteria:** a logged-in lawyer creates a deal, updates it, and the data survives across sessions/devices. → **Met in dev; blocked in prod on applying the schema.**
 
 ### v1 - Multi-deal + real exports (the "tracker" people rely on)
-1. **Deal list / home:** create, search, filter (status/type/closing month), sort, archive.
-2. **"My open items"** personal queue across deals (owner/reviewer = current user).
-3. **New-deal wizard:** pick template -> set company/investor/X -> instantiate task snapshot.
-4. **Apply Section 10 legal updates** to Template v1 (PAS-3 15-day statutory limit, registered-valuer valuation, allotment window/banking, MGT-14/SH-7 30-day clock, FC-GPR/FIRMS+EMF+LSF, certificate stamping). Add `filing_statutory_days` and statutory-vs-internal deadline distinction to the engine.
-5. **Next-best-action banner** + smart deadline flags (amber/red, statutory hard limits highlighted).
-6. **Excel export (ExcelJS)** - full workbook per Section 11.2.
-7. **PDF export (`@react-pdf/renderer`)** - Closing Status Report per Section 11.1.
-8. **Polish pass (taste):** spacing, typography, empty states, loading skeletons, mobile-readable checklist, keyboard-friendly status updates.
-9. **Verification:** generate PDF + Excel for a populated deal; confirm formatting, confidentiality footer, and that only status fields appear.
+1. 🟡 **Deal list / home** — `app/deals` (Supabase-backed) with create + list; advanced search/filter/sort/archive not all wired.
+2. ⬜ **"My open items"** cross-deal personal queue — not built.
+3. ✅ **New-deal onboarding** — set company/investor/X → instantiate task snapshot. *(Snapshots from the TS seed, not a DB template — see v0.4.)*
+4. ✅ **Section 10 legal updates applied** — in `lib/checklistSeed.ts`: PAS-3 15-day hard limit, registered-valuer valuation, MGT-14/SH-7 30-day clock, FC-GPR/FIRMS+EMF+LSF, DIR-12; `Filing.statutoryDays` + statutory-vs-internal distinction in the engine.
+5. ✅ **Next-best-action banner** + amber/red smart deadline flags with statutory hard limits highlighted.
+6. ✅ **Excel export (ExcelJS)** — `lib/excelReport.ts`.
+7. ✅ **PDF export (`@react-pdf/renderer`)** — `lib/pdfReport.tsx`, self-hosted fonts + postbuild render check.
+8. ✅ **Polish pass** — UI revamp, light/dark themes, command palette, partner mode; further empty/loading/mobile polish ongoing.
+9. 🟡 **Verification** — exports work and draw only from status fields; not yet formal snapshot-tested.
 
-**Exit criteria:** a lawyer runs several deals and one-click exports a partner-ready PDF and a formatted Excel.
+**Exit criteria:** a lawyer runs several deals and one-click exports a partner-ready PDF and a formatted Excel. → **Largely met** (multi-deal home + both exports work); gated on prod schema + branch merge.
 
 ### v2 - Defensibility, reminders, scale
-1. **Audit/activity feed UI** (reads `audit_entry`), role-gated.
-2. **Vercel Cron deadline scan** -> in-app nudges for due/overdue items.
-3. **Resend weekly digest** (opt daily): overdue, due-this-week, readiness drops.
-4. **Portfolio view** for partners (all deals' readiness + top risk).
-5. **Scale hardening:** indexes (Section 7.2), pagination, archive filtering, query-perf check with seeded large dataset (e.g., 5k deals / 150k tasks).
-6. **PDF v2 upgrade** (Puppeteer + chromium) for pixel-perfect branded report with charts.
-7. **Legal content changelog** surfaced in-app; template-version upgrade action for existing deals.
-8. **Testing:** engine unit tests (readiness/dependencies/deadlines), export snapshot tests, e2e for create -> update -> export.
+*All ⬜ pending unless noted. `audit_entry` table + append-only trigger already exist; indexes already in `db/schema.sql`.*
+1. ⬜ **Audit/activity feed UI** (reads `audit_entry`), role-gated — table/triggers exist, no UI.
+2. ⬜ **Cron deadline scan** -> in-app nudges. *(Plan said Vercel Cron; the to-do argues for Inngest — undecided.)*
+3. ⬜ **Resend weekly digest** — no email provider installed.
+4. ⬜ **Portfolio view** for partners — no `/portfolio` route.
+5. 🟡 **Scale hardening** — compound indexes present in schema; pagination/archive filtering/perf testing not done.
+6. ⬜ **PDF v2 upgrade** (Puppeteer + chromium) — react-pdf v1 is in place and sufficient for now.
+7. 🟡 **Legal content changelog** — `legal-content-changelog.md` started (reviewer "Pending"); not surfaced in-app; no template-version upgrade action.
+8. ⬜ **Testing** — only a postbuild PDF render check exists; no engine unit / snapshot / e2e tests.
 
-**Exit criteria:** firms can rely on it at volume; nothing slips because deadlines are pushed to people proactively.
+**Exit criteria:** firms can rely on it at volume; nothing slips because deadlines are pushed to people proactively. → **Not yet started** (reminders are the key gap).
 
 ### v3 - Firm collaboration + (optional) AI
-1. **Roles & sharing** within org (owner/admin/lawyer/viewer), invitations (Clerk Orgs).
-2. **Status-only comments + @mentions** with notifications.
-3. **More templates:** India M&A, Series A SHA, debt - as content (proves the template-first design).
-4. **Optional AI summaries** *under strict confidentiality guardrails* (Section 9.6): default to engine-derived prose; any LLM use is opt-in, status-fields-only, no client substance.
-5. **Admin:** org settings, branding (logo/colors for exports), data retention/export-my-data/delete controls.
+*All ⬜ pending. Roles enum (incl. `cs_user`) + RLS scoping already exist in the schema; org branding columns exist.*
+1. ⬜ **Roles & sharing** within org — enforced in RLS; **no invitation/sharing UI** (invitations would use Supabase, not Clerk Orgs).
+2. ⬜ **Status-only comments + @mentions** with notifications.
+3. ⬜ **More templates** (India M&A, Series A SHA, debt) — blocked on the Seed → DB-template migration (v0.4).
+4. ⬜ **Optional AI summaries** under the Section 9.6 confidentiality guardrails.
+5. 🟡 **Admin / branding** — `organization` carries firm-branding columns; **no admin UI** for settings/branding/retention.
 
-**Exit criteria:** a firm runs the tool as shared infrastructure with controlled access and branding.
+**Exit criteria:** a firm runs the tool as shared infrastructure with controlled access and branding. → **Not started.**
 
 ---
 
@@ -364,19 +422,24 @@ Four phases. Each ships something usable. Tickets are sequenced; check them off 
 
 ## 14. Open decisions (redirect any of these on review)
 
-1. **Stack:** Neon + Clerk (recommended) vs Supabase all-in-one. Biggest fork.
-2. **Launch collaboration scope:** personal-first with sharing in v3 (recommended) vs firm/team sharing in v1.
-3. **Jurisdiction/deal-type scope at launch:** India private placement only (recommended) vs include M&A/Series A templates sooner.
-4. **Document handling:** metadata + external links only (recommended, per confidentiality) vs build a secure upload module (bigger scope, legal sign-off).
-5. **PDF approach for v1:** react-pdf now / Chrome later (recommended) vs go straight to Chrome for maximum design.
-6. **Product name** (non-blocking).
+1. ~~**Stack:** Neon + Clerk vs Supabase.~~ **RESOLVED → Supabase** (Auth + Postgres + RLS). See Section 0a.
+2. **Launch collaboration scope:** personal-first with sharing in v3 (recommended) vs firm/team sharing in v1. *(Still open — sharing UI unbuilt.)*
+3. **Jurisdiction/deal-type scope at launch:** India private placement only (recommended) vs include M&A/Series A templates sooner. *(Currently India-only; more templates blocked on the DB-template migration.)*
+4. ~~**Document handling.**~~ **RESOLVED → metadata + external links only** (built as a register, no uploads).
+5. ~~**PDF approach for v1.**~~ **RESOLVED → react-pdf now** (shipped); Chrome upgrade deferred to v2.
+6. **Product name** — leaning **"Closing Room"** (used in README); app `<title>` still says "Fundraise Closing Tracker" (rename pending).
+7. **Reminders infra (new fork):** Vercel Cron (plan) vs **Inngest** (to-do argues for retries/idempotency on statutory reminders). Undecided.
 
 ---
 
 ## 15. Immediate next steps
 
-1. **You:** confirm/redirect the Section 14 forks (especially #1 stack and #4 documents).
-2. **Then v0, ticket 1-4:** provision Neon + Clerk, add Drizzle, define schema, migrate the seed into Template v1.
-3. In parallel, I can **apply the Section 10 legal updates to the seed now** (low-risk content work) so Template v1 launches corrected.
+> Updated 2026-06-24 — the original three steps (stack forks, provision Neon/Clerk, apply legal updates) are **done** (Supabase chosen, infra wired, Section 10 updates baked into the seed). Current priorities:
+
+1. **Apply `db/schema.sql` to the live Supabase project** (SQL editor) — unblocks prod persistence.
+2. **Open a PR** for `codex/tracker-v1-scaffold` → `main`, review the schema line-by-line, then merge; drop the "localStorage MVP" badge and rename the app title to "Closing Room".
+3. **Obtain the legal-content reviewer sign-off** — the review packet is prepared (`legal-content-changelog.md` Section 2–3); a qualified practicing lawyer / CS must verify L1–L9 and complete the Section 3 sign-off. This gates charging anyone and cannot be self-certified.
+4. **Build the reminder job** (statutory-deadline sweep + digest; decide Vercel Cron vs Inngest).
+5. **Then**: Seed → DB-template migration (unlocks more templates), audit/activity feed UI, portfolio view, "My open items".
 
 > Reminder baked into the product and this plan: **this tracker records deal *status* only - never confidential, privileged, or client-identifying material - and nothing in it is legal advice.**
