@@ -78,7 +78,7 @@ export function PartnerMode({ onExit, dark, onToggleTheme }: { onExit: () => voi
               {dark ? <Sun size={16} /> : <Moon size={16} />}
             </Button>
             <Button variant="secondary" onClick={onExit}>
-              <ArrowLeft size={16} /> Exit Partner Mode
+              <ArrowLeft size={16} /> Exit
             </Button>
           </div>
         </div>
